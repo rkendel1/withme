@@ -522,6 +522,7 @@
     let touchStartedOnButton = false;
 
     button.addEventListener('touchstart', (e) => {
+      if (!e.touches.length) return;
       touchStartedOnButton = true;
       const touch = e.touches[0];
       startDrag(touch.clientX, touch.clientY);
@@ -529,7 +530,7 @@
     }, { passive: false });
 
     document.addEventListener('touchmove', (e) => {
-      if (!isDragging) return;
+      if (!isDragging || !e.touches.length) return;
       const touch = e.touches[0];
       moveDrag(touch.clientX, touch.clientY);
       e.preventDefault();
@@ -720,13 +721,14 @@
     // Touch events for mobile
     header.addEventListener('touchstart', (e) => {
       if (e.target.closest('.repolens-header-btn')) return;
+      if (!e.touches.length) return;
       const touch = e.touches[0];
       startDrag(touch.clientX, touch.clientY);
       e.preventDefault();
     }, { passive: false });
 
     document.addEventListener('touchmove', (e) => {
-      if (!isDragging) return;
+      if (!isDragging || !e.touches.length) return;
       const touch = e.touches[0];
       moveDrag(touch.clientX, touch.clientY);
       e.preventDefault();
@@ -745,6 +747,7 @@
 
     let isResizing = false;
     let startX, startY, initialWidth, initialHeight;
+    let isMobile = false;
 
     const startResize = (clientX, clientY) => {
       isResizing = true;
@@ -752,6 +755,8 @@
       startY = clientY;
       initialWidth = overlay.offsetWidth;
       initialHeight = overlay.offsetHeight;
+      // Cache mobile check at start of resize to avoid repeated layout queries
+      isMobile = window.innerWidth <= MOBILE_BREAKPOINT;
     };
 
     const moveResize = (clientX, clientY) => {
@@ -759,9 +764,9 @@
       const dx = clientX - startX;
       const dy = clientY - startY;
 
-      // Use smaller minimum width for mobile
-      const minWidth = window.innerWidth <= MOBILE_BREAKPOINT ? 280 : 400;
-      const minHeight = window.innerWidth <= MOBILE_BREAKPOINT ? 200 : 300;
+      // Use smaller minimum width for mobile (cached at start)
+      const minWidth = isMobile ? 280 : 400;
+      const minHeight = isMobile ? 200 : 300;
 
       const newWidth = Math.max(minWidth, initialWidth + dx);
       const newHeight = Math.max(minHeight, initialHeight + dy);
@@ -791,13 +796,14 @@
 
     // Touch events for mobile
     resizeHandle.addEventListener('touchstart', (e) => {
+      if (!e.touches.length) return;
       const touch = e.touches[0];
       startResize(touch.clientX, touch.clientY);
       e.preventDefault();
     }, { passive: false });
 
     document.addEventListener('touchmove', (e) => {
-      if (!isResizing) return;
+      if (!isResizing || !e.touches.length) return;
       const touch = e.touches[0];
       moveResize(touch.clientX, touch.clientY);
       e.preventDefault();
