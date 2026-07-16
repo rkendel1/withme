@@ -638,10 +638,9 @@
     }
 
     // Build the RepoLens app URL with the repo to ingest
+    // Only the 'ingest' parameter is currently used by the app
     const appUrl = new URL(REPOLENS_APP_URL);
     appUrl.searchParams.set('ingest', repoInfo.url);
-    appUrl.searchParams.set('platform', repoInfo.platform);
-    appUrl.searchParams.set('fullName', repoInfo.fullName);
 
     // Open in new tab
     if (typeof GM_openInTab !== 'undefined') {
@@ -669,17 +668,17 @@
 
   /**
    * Handle add to collection
+   * Note: Collection support will be added in a future version.
+   * Currently, this just triggers a standard ingestion.
    */
   function handleAddToCollection(collectionId) {
     const repoInfo = parseRepoInfo();
     if (!repoInfo) return;
 
-    // Build the RepoLens app URL with collection info
+    // Build the RepoLens app URL
+    // Note: Collection assignment after ingestion is planned for future implementation
     const appUrl = new URL(REPOLENS_APP_URL);
     appUrl.searchParams.set('ingest', repoInfo.url);
-    appUrl.searchParams.set('platform', repoInfo.platform);
-    appUrl.searchParams.set('fullName', repoInfo.fullName);
-    appUrl.searchParams.set('collection', collectionId);
 
     if (typeof GM_openInTab !== 'undefined') {
       GM_openInTab(appUrl.toString(), { active: true });
