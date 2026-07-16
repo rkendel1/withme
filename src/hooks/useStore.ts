@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { Repository, LLMConfig, QueryResult, RepoFile, Symbol } from '../types';
+import type { RuntimeProfile, ExecutionSession, ExecutionLog } from '../types/runtime';
 import type { IngestionProgress } from '../services/github';
 import { STORAGE_KEYS } from '../constants';
 
@@ -44,8 +45,17 @@ interface AppState {
   llmConfig: LLMConfig | null;
   setLLMConfig: (config: LLMConfig | null) => void;
 
+  // Runtime Execution State
+  runtimeProfile: RuntimeProfile | null;
+  executionSession: ExecutionSession | null;
+  executionLogs: ExecutionLog[];
+  setRuntimeProfile: (profile: RuntimeProfile | null) => void;
+  setExecutionSession: (session: ExecutionSession | null) => void;
+  addExecutionLog: (log: ExecutionLog) => void;
+  clearExecutionLogs: () => void;
+
   // UI State
-  activePanel: 'repositories' | 'collections' | 'files' | 'symbols' | 'architecture' | 'query' | 'settings';
+  activePanel: 'repositories' | 'collections' | 'files' | 'symbols' | 'architecture' | 'runtime' | 'query' | 'settings';
   setActivePanel: (panel: AppState['activePanel']) => void;
   isSidebarOpen: boolean;
   toggleSidebar: () => void;
@@ -103,6 +113,18 @@ export const useStore = create<AppState>()(
       // LLM Config
       llmConfig: null,
       setLLMConfig: (llmConfig) => set({ llmConfig }),
+
+      // Runtime Execution State
+      runtimeProfile: null,
+      executionSession: null,
+      executionLogs: [],
+      setRuntimeProfile: (runtimeProfile) => set({ runtimeProfile }),
+      setExecutionSession: (executionSession) => set({ executionSession }),
+      addExecutionLog: (log) =>
+        set((state) => ({
+          executionLogs: [...state.executionLogs.slice(-99), log],
+        })),
+      clearExecutionLogs: () => set({ executionLogs: [] }),
 
       // UI State
       activePanel: 'repositories',

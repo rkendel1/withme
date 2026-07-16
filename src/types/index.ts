@@ -238,3 +238,6 @@ export * from './architecture';
 
 // Re-export graph types
 export * from './graph';
+
+// Re-export runtime types
+export * from './runtime';

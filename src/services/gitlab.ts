@@ -6,7 +6,10 @@ import {
   createDependency,
   createSymbol,
   createImport,
+  getFilesByRepository,
+  getDependenciesByRepository,
 } from '../db';
+import { upsertRuntimeProfile } from '../db/runtime';
 import {
   SKIP_CONTENT_EXTENSIONS,
   MAX_FILE_SIZE,
@@ -19,11 +22,12 @@ import {
   extractDependencies,
 } from './shared';
 import { analyzeArchitecture } from './architecture';
+import { detectRuntimeProfile } from './runtime/runtimeDetector';
 
 const GITLAB_API = 'https://gitlab.com/api/v4';
 
 export interface IngestionProgress {
-  phase: 'metadata' | 'tree' | 'files' | 'analysis' | 'architecture' | 'complete';
+  phase: 'metadata' | 'tree' | 'files' | 'analysis' | 'architecture' | 'runtime' | 'complete';
   current: number;
   total: number;
   message: string;
@@ -318,6 +322,44 @@ export async function ingestGitLabRepository(
     current: 1,
     total: 1,
     message: 'Architecture analysis complete!',
+  });
+
+  // Phase 6: Runtime Detection
+  onProgress?.({
+    phase: 'runtime',
+    current: 0,
+    total: 1,
+    message: 'Detecting runtime environment...',
+  });
+
+  // Detect runtime profile
+  const repoFiles = await getFilesByRepository(repository.id);
+  const repoDependencies = await getDependenciesByRepository(repository.id);
+  const runtimeDetection = detectRuntimeProfile(repoFiles, repoDependencies);
+  
+  // Save runtime profile
+  await upsertRuntimeProfile({
+    repositoryId: repository.id,
+    runtime: runtimeDetection.runtime,
+    version: runtimeDetection.version,
+    packageManager: runtimeDetection.packageManager,
+    lockFile: runtimeDetection.lockFile,
+    framework: runtimeDetection.framework,
+    installCommand: runtimeDetection.installCommand,
+    startCommand: runtimeDetection.startCommand,
+    buildCommand: runtimeDetection.buildCommand,
+    testCommand: runtimeDetection.testCommand,
+    ports: runtimeDetection.ports,
+    environmentVariables: runtimeDetection.environmentVariables,
+    confidence: runtimeDetection.confidence,
+    detectedFrom: runtimeDetection.detectedFrom,
+  });
+
+  onProgress?.({
+    phase: 'runtime',
+    current: 1,
+    total: 1,
+    message: 'Runtime detection complete!',
   });
 
   onProgress?.({
