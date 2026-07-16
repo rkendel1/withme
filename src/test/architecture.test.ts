@@ -11,6 +11,7 @@ import { detectLayers, classifyFileLayer } from '../services/architecture/layerD
 import { detectEntryPoints } from '../services/architecture/entryPointDetector';
 import { detectIntent } from '../services/architecture/architecturePlanner';
 import type { RepoFile, Dependency } from '../types';
+import type { Service } from '../types/architecture';
 
 // Helper to create mock RepoFile
 function createMockFile(path: string, content: string | null = null): RepoFile {
@@ -29,14 +30,18 @@ function createMockFile(path: string, content: string | null = null): RepoFile {
 }
 
 // Helper to create mock Dependency
-function createMockDependency(name: string, version: string, type: 'runtime' | 'dev' = 'runtime'): Dependency {
+function createMockDependency(
+  name: string, 
+  version: string, 
+  type: 'production' | 'development' = 'production'
+): Dependency {
   return {
     id: 1,
     repositoryId: 1,
     name,
     version,
     type,
-    createdAt: new Date(),
+    ecosystem: 'npm',
   };
 }
 
@@ -56,7 +61,7 @@ describe('Technology Detector', () => {
     });
 
     it('should detect TypeScript from dependencies', () => {
-      const context = createContext([], [createMockDependency('typescript', '5.0.0', 'dev')]);
+      const context = createContext([], [createMockDependency('typescript', '5.0.0', 'development')]);
       
       const result = detectTechnologies(context, 1);
       
@@ -182,7 +187,7 @@ describe('Service Detector', () => {
         `),
       ];
       
-      const result = detectApiEndpoints(files);
+      const result = detectApiEndpoints(files, 1);
       
       expect(result.length).toBeGreaterThan(0);
       expect(result.some(e => e.method === 'GET' && e.path === '/api/users')).toBe(true);
@@ -192,10 +197,10 @@ describe('Service Detector', () => {
 
   describe('detectArchitectureStyle', () => {
     it('should detect monolith for simple apps', () => {
-      const services = [{ type: 'rest_api', name: 'API' }];
+      const services: { type: string; name: string }[] = [{ type: 'rest_api', name: 'API' }];
       const files = [createMockFile('src/index.ts')];
       
-      const result = detectArchitectureStyle(services as any, files);
+      const result = detectArchitectureStyle(services as Service[], files);
       
       expect(result).toBe('monolith');
     });
@@ -251,7 +256,7 @@ describe('Layer Detector', () => {
         createMockFile('src/db/index.ts'),
       ];
       
-      const result = detectLayers(files);
+      const result = detectLayers(files, 1);
       
       expect(result.length).toBeGreaterThan(0);
       // Should detect presentation, api, application, domain, and infrastructure layers

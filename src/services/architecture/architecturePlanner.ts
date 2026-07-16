@@ -322,7 +322,7 @@ function generateSuggestedQueries(intent: QueryIntent): string[] {
 
 export interface QueryPlan {
   intent: QueryIntent;
-  shouldUsegraph: boolean;
+  shouldUseGraph: boolean;
   graphQueries: string[];
   contextNeeded: string[];
   diagramType?: string;
@@ -336,7 +336,7 @@ export function createQueryPlan(
 ): QueryPlan {
   const plan: QueryPlan = {
     intent: intentResult.intent,
-    shouldUsegraph: true,
+    shouldUseGraph: true,
     graphQueries: [],
     contextNeeded: [],
   };
@@ -435,7 +435,7 @@ export function createQueryPlan(
       break;
       
     default:
-      plan.shouldUsegraph = false;
+      plan.shouldUseGraph = false;
       plan.graphQueries = [];
       plan.contextNeeded = [];
   }
