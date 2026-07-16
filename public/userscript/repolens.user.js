@@ -24,6 +24,16 @@
   const BUTTON_ID = 'repolens-ingest-button';
   const OVERLAY_ID = 'repolens-overlay';
 
+  // Paths to exclude from repository detection
+  const GITHUB_EXCLUDED_PATHS = [
+    'settings', 'orgs', 'users', 'marketplace', 'explore',
+    'notifications', 'new', 'login', 'join', 'pricing'
+  ];
+
+  const GITLAB_EXCLUDED_PATHS = [
+    'explore', 'dashboard', 'users', 'groups', 'admin', 'help', '-'
+  ];
+
   // Styles
   const styles = `
     #${BUTTON_ID} {
@@ -418,7 +428,7 @@
     if (platform === 'github') {
       // GitHub URL: /owner/repo or /owner/repo/...
       const match = pathname.match(/^\/([^/]+)\/([^/]+)/);
-      if (match && !['settings', 'orgs', 'users', 'marketplace', 'explore', 'notifications', 'new', 'login', 'join', 'pricing'].includes(match[1])) {
+      if (match && !GITHUB_EXCLUDED_PATHS.includes(match[1])) {
         return {
           platform,
           owner: match[1],
@@ -434,7 +444,7 @@
       if (match) {
         const projectPath = match[1].replace(/\/$/, '');
         // Skip non-project pages
-        if (!['explore', 'dashboard', 'users', 'groups', 'admin', 'help', '-'].some(p => projectPath.startsWith(p))) {
+        if (!GITLAB_EXCLUDED_PATHS.some(p => projectPath.startsWith(p))) {
           const parts = projectPath.split('/');
           if (parts.length >= 2) {
             return {

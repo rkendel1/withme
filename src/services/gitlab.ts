@@ -67,7 +67,7 @@ export type ProgressCallback = (progress: IngestionProgress) => void;
 /**
  * Parse a GitLab URL to extract the project path
  */
-export function parseGitLabUrl(url: string): { projectPath: string; host: string } | null {
+export function parseGitLabUrl(url: string): { host: string; projectPath: string } | null {
   // Handle various GitLab URL formats
   const patterns = [
     // Full URL: https://gitlab.com/group/project or https://gitlab.com/group/subgroup/project

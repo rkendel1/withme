@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { FolderGit2, Plus, Trash2, ExternalLink, Loader2 } from 'lucide-react';
 import { useStore } from '../hooks/useStore';
 import { ingestGitHubRepository, IngestionProgress, parseGitHubUrl } from '../services/github';
@@ -44,6 +44,7 @@ export function RepositoryList() {
 
   const [repoUrl, setRepoUrl] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const hasProcessedUrlParams = useRef(false);
 
   const handleIngest = useCallback(async (urlToIngest?: string) => {
     const targetUrl = urlToIngest || repoUrl.trim();
@@ -91,13 +92,18 @@ export function RepositoryList() {
     }
   }, [repoUrl, setIngesting, setIngestionProgress, addRepository, setSelectedRepository, setFiles, setSymbols, setActivePanel]);
 
-  // Handle URL parameters for userscript integration
+  // Handle URL parameters for userscript integration (one-time on mount)
   useEffect(() => {
+    // Only process URL params once
+    if (hasProcessedUrlParams.current) return;
+    
     const params = new URLSearchParams(window.location.search);
     const ingestUrl = params.get('ingest');
     
     if (ingestUrl && !isIngesting) {
-      // Clear the URL parameters
+      hasProcessedUrlParams.current = true;
+      
+      // Clear the URL parameters to prevent re-triggering
       const newUrl = window.location.pathname;
       window.history.replaceState({}, '', newUrl);
       
