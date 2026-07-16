@@ -84,9 +84,11 @@ export function detectChanges(
 
 /**
  * Check if content needs to be processed
+ * @param currentHash - The current content hash
+ * @param cachedHash - The cached content hash (if exists)
+ * @returns true if content needs processing, false if unchanged
  */
 export function shouldProcessFile(
-  _path: string,
   currentHash: ContentHash,
   cachedHash: ContentHash | undefined
 ): boolean {

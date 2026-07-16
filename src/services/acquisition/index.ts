@@ -17,7 +17,6 @@ import { ingestFolder } from './folderImport';
 import { ingestZip } from './zipImport';
 import { ingestGitHubRepository, IngestionProgress } from '../github';
 import { ingestGitLabRepository } from '../gitlab';
-import { getRepository } from '../../db';
 
 // Re-export for convenience
 export { resolveSource, isUrlInput } from './resolver';
@@ -102,9 +101,6 @@ export async function acquireRepository(
           input.token,
           progressAdapter
         );
-
-        // Note: repo variable kept for potential future stats retrieval
-        await getRepository(repoId);
         
         return {
           success: true,
