@@ -169,14 +169,15 @@ export async function searchFiles(
 export async function createDirectory(
   dir: Omit<Directory, 'id'>
 ): Promise<Directory> {
+  // Try to insert, on conflict query existing
   const result = await query(
     `INSERT INTO directories (repository_id, path, name, parent_path)
      VALUES ($1, $2, $3, $4)
-     ON CONFLICT (repository_id, path) DO NOTHING
+     ON CONFLICT (repository_id, path) DO UPDATE SET name = EXCLUDED.name
      RETURNING *`,
     [dir.repositoryId, dir.path, dir.name, dir.parentPath]
   );
-  return result.length > 0 ? mapDirectory(result[0]) : dir as Directory;
+  return mapDirectory(result[0]);
 }
 
 export async function getDirectoriesByRepository(

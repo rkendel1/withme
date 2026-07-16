@@ -256,6 +256,18 @@ function extractSymbols(
 
 /**
  * Extract imports from TypeScript/JavaScript content
+ * 
+ * Note: This simple regex-based extraction handles common import patterns:
+ * - Named imports: import { foo, bar } from 'module'
+ * - Default imports: import foo from 'module'
+ * - Mixed imports: import foo, { bar } from 'module'
+ * 
+ * Patterns NOT currently handled:
+ * - Side-effect imports: import './styles.css'
+ * - Namespace imports: import * as foo from 'module'
+ * - Dynamic imports: import('module')
+ * 
+ * For more accurate parsing, consider using a proper AST parser like Tree-sitter.
  */
 function extractImports(
   content: string,
@@ -324,7 +336,7 @@ function extractDependencies(
     const pkg = JSON.parse(content);
     const dependencies: Array<Omit<import('../types').Dependency, 'id'>> = [];
 
-    const addDeps = (deps: Record<string, string> | undefined, type: 'production' | 'development') => {
+    const addDeps = (deps: Record<string, string> | undefined, type: 'production' | 'development' | 'peer' | 'optional') => {
       if (!deps) return;
       for (const [name, version] of Object.entries(deps)) {
         dependencies.push({
@@ -339,7 +351,7 @@ function extractDependencies(
 
     addDeps(pkg.dependencies, 'production');
     addDeps(pkg.devDependencies, 'development');
-    addDeps(pkg.peerDependencies, 'production');
+    addDeps(pkg.peerDependencies, 'peer');
 
     return dependencies;
   } catch {
