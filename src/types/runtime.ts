@@ -79,7 +79,145 @@ export type ExecutionStatus =
 export type ExecutionMode = 
   | 'browser'      // WASM-compatible, runs in browser
   | 'local'        // Local container via Docker/Podman
-  | 'remote';      // Remote ephemeral runtime
+  | 'remote'       // Remote ephemeral runtime
+  | 'analysis';    // Analysis-only mode (no execution)
+
+// ============================================================================
+// Remote Execution Configuration
+// ============================================================================
+
+/** Default base URL for remote preview proxy */
+export const DEFAULT_REMOTE_PREVIEW_URL = 'https://withme-w3kh.onrender.com';
+
+// ============================================================================
+// Device Capability Types
+// ============================================================================
+
+/** Device platform type */
+export type DevicePlatform = 'desktop' | 'tablet' | 'mobile';
+
+/** Browser type */
+export type BrowserType = 
+  | 'chrome'
+  | 'firefox'
+  | 'safari'
+  | 'edge'
+  | 'opera'
+  | 'embedded'
+  | 'unknown';
+
+/** Runtime provider type */
+export type RuntimeProvider = 
+  | 'local-agent'      // Desktop local agent with container runtime
+  | 'remote-sandbox'   // Cloud-hosted ephemeral sandbox
+  | 'browser-wasm'     // In-browser WASM execution
+  | 'analysis-only';   // No runtime, analysis only
+
+/** Preview delivery type */
+export type PreviewType = 
+  | 'localhost'        // localhost:port preview
+  | 'https'            // Secure remote URL preview
+  | 'embedded'         // In-browser embedded preview
+  | 'none';            // No preview available
+
+/** Device capabilities profile */
+export interface DeviceCapabilities {
+  /** Device platform type */
+  platform: DevicePlatform;
+  
+  /** Browser information */
+  browser: BrowserType;
+  
+  /** Whether running in a browser context */
+  isBrowser: boolean;
+  
+  /** Local filesystem access available */
+  localFilesystem: boolean;
+  
+  /** Container runtime (Docker/Podman) available */
+  containerRuntime: boolean;
+  
+  /** Localhost port exposure available */
+  localhostPorts: boolean;
+  
+  /** Background execution supported */
+  backgroundExecution: boolean;
+  
+  /** WebAssembly support available */
+  wasmSupport: boolean;
+  
+  /** Remote execution provider available */
+  remoteExecutionAvailable: boolean;
+  
+  /** Service worker support */
+  serviceWorkerSupport: boolean;
+  
+  /** User agent string (for debugging) */
+  userAgent: string | null;
+}
+
+/** Execution strategy based on capabilities */
+export interface ExecutionStrategy {
+  /** Selected execution mode */
+  mode: ExecutionMode;
+  
+  /** Runtime provider to use */
+  provider: RuntimeProvider;
+  
+  /** Preview delivery method */
+  previewType: PreviewType;
+  
+  /** Available execution options for UI */
+  availableOptions: ExecutionOption[];
+  
+  /** Reason for strategy selection */
+  selectionReason: string;
+}
+
+/** An execution option available to the user */
+export interface ExecutionOption {
+  /** Option identifier */
+  id: string;
+  
+  /** Display label */
+  label: string;
+  
+  /** Description */
+  description: string;
+  
+  /** Execution mode */
+  mode: ExecutionMode;
+  
+  /** Runtime provider */
+  provider: RuntimeProvider;
+  
+  /** Whether this option is available */
+  available: boolean;
+  
+  /** Reason if unavailable */
+  unavailableReason?: string;
+  
+  /** Whether this is the recommended option */
+  recommended: boolean;
+}
+
+/** Execution environment context */
+export interface ExecutionContext {
+  /** Device capabilities */
+  capabilities: DeviceCapabilities;
+  
+  /** Selected execution strategy */
+  strategy: ExecutionStrategy;
+  
+  /** Device type for session tracking */
+  deviceType: DevicePlatform;
+  
+  /** Provider used for execution */
+  provider: RuntimeProvider;
+  
+  /** Preview type used */
+  previewType: PreviewType;
+}
 
 // ============================================================================
 // Runtime Profile
@@ -141,6 +279,11 @@ export interface ExecutionSession {
   // Environment
   environment: RuntimeEnvironment;
   mode: ExecutionMode;
+  
+  // Device context
+  deviceType: DevicePlatform | null;
+  provider: RuntimeProvider | null;
+  previewType: PreviewType | null;
   
   // Container info (for local/remote)
   containerId: string | null;

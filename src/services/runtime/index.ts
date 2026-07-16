@@ -23,8 +23,24 @@ export {
   getSessionStatus,
   onExecutionEvent,
   detectContainerRuntime,
+  getDeviceCapabilities,
+  getExecutionStrategy,
   DEFAULT_EXECUTION_CONFIG,
 } from './executionEngine';
+
+// Device Capabilities
+export {
+  detectPlatform,
+  detectBrowser,
+  detectDeviceCapabilities,
+  selectExecutionStrategy,
+  RuntimeProviderSelector,
+  createMockCapabilities,
+  describeStrategy,
+  checkWasmSupport,
+  checkServiceWorkerSupport,
+  isBrowserContext,
+} from './deviceCapabilities';
 
 // Re-export types
 export type {
@@ -43,4 +59,16 @@ export type {
   RuntimeDetectionResult,
   PortMapping,
   RuntimeImage,
+  // Device capability types
+  DevicePlatform,
+  BrowserType,
+  RuntimeProvider,
+  PreviewType,
+  DeviceCapabilities,
+  ExecutionStrategy,
+  ExecutionOption,
+  ExecutionContext,
 } from '../../types/runtime';
+
+// Re-export CreateSessionOptions type
+export type { CreateSessionOptions } from './executionEngine';
