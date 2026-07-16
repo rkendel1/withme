@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Settings as SettingsIcon, Save, Check, AlertCircle, Key, Globe, Bot, Download, ExternalLink } from 'lucide-react';
 import { useStore } from '../hooks/useStore';
+import { useOverlayMode } from '../hooks/useOverlayMode';
 import { saveLLMConfig, getLLMConfig } from '../services/llm';
 import type { LLMConfig, LLMProvider } from '../types';
 
@@ -15,6 +16,7 @@ const PROVIDERS: { value: LLMProvider; label: string; requiresKey: boolean; defa
 
 export function Settings() {
   const { llmConfig, setLLMConfig } = useStore();
+  const isOverlay = useOverlayMode();
 
   const [provider, setProvider] = useState<LLMProvider>(llmConfig?.provider || 'openai');
   const [apiKey, setApiKey] = useState(llmConfig?.apiKey || '');
@@ -235,62 +237,83 @@ export function Settings() {
             </div>
           </section>
 
-          {/* Browser Overlay */}
-          <section className="pt-6 border-t border-gray-200 dark:border-gray-700">
-            <h3 className="font-medium mb-4 flex items-center gap-2">
-              <Download className="w-4 h-4" />
-              Browser Overlay
-            </h3>
-            <div className="text-sm text-gray-600 dark:text-gray-400 space-y-3">
-              <p>
-                Install the RepoLens browser overlay to add a one-click &ldquo;Ingest&rdquo; button 
-                directly on GitHub and GitLab repository pages.
-              </p>
-              
-              <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
-                <h4 className="font-medium text-blue-700 dark:text-blue-300 mb-2">Installation Steps:</h4>
-                <ol className="list-decimal list-inside space-y-2 text-blue-600 dark:text-blue-400">
-                  <li>
-                    Install a userscript manager like{' '}
-                    <a 
-                      href="https://www.tampermonkey.net/" 
-                      target="_blank" 
-                      rel="noopener noreferrer"
-                      className="underline hover:text-blue-700 dark:hover:text-blue-300"
-                    >
-                      Tampermonkey
-                    </a>{' '}
-                    or{' '}
-                    <a 
-                      href="https://violentmonkey.github.io/" 
-                      target="_blank" 
-                      rel="noopener noreferrer"
-                      className="underline hover:text-blue-700 dark:hover:text-blue-300"
-                    >
-                      Violentmonkey
-                    </a>
-                  </li>
-                  <li>Click the install button below</li>
-                  <li>Confirm the installation in your userscript manager</li>
-                </ol>
-              </div>
-
-              <a
-                href="/userscript/repolens.user.js"
-                className="inline-flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg 
-                           hover:bg-green-700 transition-colors font-medium"
-              >
+          {/* Browser Overlay - Only show when NOT already in overlay mode */}
+          {!isOverlay && (
+            <section className="pt-6 border-t border-gray-200 dark:border-gray-700">
+              <h3 className="font-medium mb-4 flex items-center gap-2">
                 <Download className="w-4 h-4" />
-                Install Browser Overlay
-                <ExternalLink className="w-3 h-3" />
-              </a>
+                Browser Overlay
+              </h3>
+              <div className="text-sm text-gray-600 dark:text-gray-400 space-y-3">
+                <p>
+                  Install the RepoLens browser overlay to add a one-click &ldquo;Ingest&rdquo; button 
+                  directly on GitHub and GitLab repository pages.
+                </p>
+                
+                <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+                  <h4 className="font-medium text-blue-700 dark:text-blue-300 mb-2">Installation Steps:</h4>
+                  <ol className="list-decimal list-inside space-y-2 text-blue-600 dark:text-blue-400">
+                    <li>
+                      Install a userscript manager like{' '}
+                      <a 
+                        href="https://www.tampermonkey.net/" 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="underline hover:text-blue-700 dark:hover:text-blue-300"
+                      >
+                        Tampermonkey
+                      </a>{' '}
+                      or{' '}
+                      <a 
+                        href="https://violentmonkey.github.io/" 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="underline hover:text-blue-700 dark:hover:text-blue-300"
+                      >
+                        Violentmonkey
+                      </a>
+                    </li>
+                    <li>Click the install button below</li>
+                    <li>Confirm the installation in your userscript manager</li>
+                  </ol>
+                </div>
 
-              <p className="text-xs text-gray-500">
-                The overlay adds a &ldquo;🔍 RepoLens&rdquo; button to repository pages, allowing 
-                you to ingest any repository with a single click.
-              </p>
-            </div>
-          </section>
+                <a
+                  href="/userscript/repolens.user.js"
+                  className="inline-flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg 
+                             hover:bg-green-700 transition-colors font-medium"
+                >
+                  <Download className="w-4 h-4" />
+                  Install Browser Overlay
+                  <ExternalLink className="w-3 h-3" />
+                </a>
+
+                <p className="text-xs text-gray-500">
+                  The overlay adds a &ldquo;🔍 RepoLens&rdquo; button to repository pages, allowing 
+                  you to ingest any repository with a single click.
+                </p>
+              </div>
+            </section>
+          )}
+
+          {/* Overlay Mode Indicator - Only show when IN overlay mode */}
+          {isOverlay && (
+            <section className="pt-6 border-t border-gray-200 dark:border-gray-700">
+              <h3 className="font-medium mb-4 flex items-center gap-2 text-green-600 dark:text-green-400">
+                <Check className="w-4 h-4" />
+                Overlay Mode Active
+              </h3>
+              <div className="text-sm text-gray-600 dark:text-gray-400 space-y-2">
+                <p>
+                  You&apos;re currently using RepoLens through the browser overlay.
+                  All features are available in this mode.
+                </p>
+                <p className="text-xs text-gray-500">
+                  Tip: Use the minimize button in the overlay header to save screen space while keeping RepoLens accessible.
+                </p>
+              </div>
+            </section>
+          )}
         </div>
       </div>
     </div>

@@ -23,6 +23,7 @@
   const BUTTON_ID = 'repolens-ingest-button';
   const OVERLAY_ID = 'repolens-overlay';
   const IFRAME_ID = 'repolens-iframe';
+  const MOBILE_BREAKPOINT = 768;
 
   // Paths to exclude from repository detection
   const GITHUB_EXCLUDED_PATHS = [
@@ -57,6 +58,7 @@
       box-shadow: 0 4px 14px rgba(59, 130, 246, 0.4);
       transition: box-shadow 0.2s ease, transform 0.1s ease;
       user-select: none;
+      touch-action: none;
     }
 
     #${BUTTON_ID}:hover {
@@ -74,6 +76,21 @@
       height: 18px;
     }
 
+    /* Mobile adjustments for trigger button */
+    @media (max-width: ${MOBILE_BREAKPOINT}px) {
+      #${BUTTON_ID} {
+        top: 60px;
+        right: 16px;
+        padding: 12px;
+        font-size: 13px;
+        border-radius: 50%;
+      }
+
+      #${BUTTON_ID} span {
+        display: none;
+      }
+    }
+
     /* Main overlay container */
     #${OVERLAY_ID} {
       position: fixed;
@@ -83,8 +100,8 @@
       height: calc(100vh - 80px);
       max-width: calc(100vw - 40px);
       max-height: calc(100vh - 80px);
-      min-width: 400px;
-      min-height: 300px;
+      min-width: 280px;
+      min-height: 200px;
       z-index: 10000;
       background: #1f2937;
       border-radius: 12px;
@@ -93,6 +110,22 @@
       flex-direction: column;
       overflow: hidden;
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      touch-action: none;
+    }
+
+    /* Mobile responsive overlay */
+    @media (max-width: ${MOBILE_BREAKPOINT}px) {
+      #${OVERLAY_ID} {
+        top: 10px;
+        right: 10px;
+        left: 10px;
+        width: auto;
+        height: calc(100vh - 20px);
+        max-width: none;
+        max-height: calc(100vh - 20px);
+        min-width: auto;
+        border-radius: 8px;
+      }
     }
 
     #${OVERLAY_ID}.open {
@@ -283,7 +316,7 @@
     #${OVERLAY_ID}.minimized {
       width: 280px;
       height: 48px;
-      min-width: 280px;
+      min-width: 200px;
       min-height: 48px;
     }
 
@@ -295,6 +328,31 @@
     #${OVERLAY_ID}.minimized .repolens-header {
       border-bottom: none;
       border-radius: 12px;
+    }
+
+    @media (max-width: ${MOBILE_BREAKPOINT}px) {
+      #${OVERLAY_ID}.minimized {
+        width: calc(100vw - 20px);
+        left: 10px;
+        right: 10px;
+      }
+    }
+
+    /* Mobile-specific header adjustments */
+    @media (max-width: ${MOBILE_BREAKPOINT}px) {
+      .repolens-header {
+        padding: 8px 10px;
+      }
+
+      .repolens-logo span {
+        display: none;
+      }
+
+      .repolens-repo-badge span {
+        max-width: 120px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
     }
   `;
 
@@ -406,27 +464,25 @@
       hasDragged = false;
     });
 
-    // Make button draggable
+    // Make button draggable (with touch support)
     let isDragging = false;
     let startX, startY, initialX, initialY;
 
-    button.addEventListener('mousedown', (e) => {
-      if (e.button !== 0) return;
+    const startDrag = (clientX, clientY) => {
       isDragging = true;
       hasDragged = false;
-      startX = e.clientX;
-      startY = e.clientY;
+      startX = clientX;
+      startY = clientY;
       const rect = button.getBoundingClientRect();
       initialX = rect.left;
       initialY = rect.top;
       button.classList.add('dragging');
-      e.preventDefault();
-    });
+    };
 
-    const onMouseMove = (e) => {
+    const moveDrag = (clientX, clientY) => {
       if (!isDragging) return;
-      const dx = e.clientX - startX;
-      const dy = e.clientY - startY;
+      const dx = clientX - startX;
+      const dy = clientY - startY;
       
       if (Math.abs(dx) > 5 || Math.abs(dy) > 5) {
         hasDragged = true;
@@ -442,15 +498,59 @@
       button.style.top = `${Math.max(0, Math.min(newY, maxY))}px`;
     };
 
-    const onMouseUp = () => {
+    const endDrag = () => {
       if (isDragging) {
         isDragging = false;
         button.classList.remove('dragging');
       }
     };
 
-    document.addEventListener('mousemove', onMouseMove);
-    document.addEventListener('mouseup', onMouseUp);
+    // Mouse events
+    button.addEventListener('mousedown', (e) => {
+      if (e.button !== 0) return;
+      startDrag(e.clientX, e.clientY);
+      e.preventDefault();
+    });
+
+    document.addEventListener('mousemove', (e) => {
+      moveDrag(e.clientX, e.clientY);
+    });
+
+    document.addEventListener('mouseup', endDrag);
+
+    // Touch events for mobile - track if touch started on button
+    let touchStartedOnButton = false;
+
+    button.addEventListener('touchstart', (e) => {
+      if (!e.touches.length) return;
+      touchStartedOnButton = true;
+      const touch = e.touches[0];
+      startDrag(touch.clientX, touch.clientY);
+      e.preventDefault();
+    }, { passive: false });
+
+    document.addEventListener('touchmove', (e) => {
+      if (!e.touches.length || !isDragging) return;
+      const touch = e.touches[0];
+      moveDrag(touch.clientX, touch.clientY);
+      e.preventDefault();
+    }, { passive: false });
+
+    document.addEventListener('touchend', () => {
+      // Only toggle overlay if touch started on button and no drag occurred
+      if (touchStartedOnButton && !hasDragged) {
+        toggleOverlay();
+      }
+      endDrag();
+      touchStartedOnButton = false;
+      hasDragged = false;
+    });
+
+    document.addEventListener('touchcancel', () => {
+      endDrag();
+      touchStartedOnButton = false;
+      hasDragged = false;
+    });
 
     document.body.appendChild(button);
   }
@@ -561,7 +661,7 @@
   }
 
   /**
-   * Setup overlay dragging
+   * Setup overlay dragging (with touch support for mobile)
    */
   function setupOverlayDrag(overlay) {
     const header = document.getElementById('repolens-drag-handle');
@@ -570,25 +670,21 @@
     let isDragging = false;
     let startX, startY, initialX, initialY;
 
-    header.addEventListener('mousedown', (e) => {
-      if (e.target.closest('.repolens-header-btn')) return;
-      if (e.button !== 0) return;
-
+    const startDrag = (clientX, clientY) => {
       isDragging = true;
-      startX = e.clientX;
-      startY = e.clientY;
+      startX = clientX;
+      startY = clientY;
       const rect = overlay.getBoundingClientRect();
       initialX = rect.left;
       initialY = rect.top;
       header.classList.add('dragging');
       overlay.classList.add('dragging');
-      e.preventDefault();
-    });
+    };
 
-    document.addEventListener('mousemove', (e) => {
+    const moveDrag = (clientX, clientY) => {
       if (!isDragging) return;
-      const dx = e.clientX - startX;
-      const dy = e.clientY - startY;
+      const dx = clientX - startX;
+      const dy = clientY - startY;
 
       const newX = initialX + dx;
       const newY = initialY + dy;
@@ -598,19 +694,52 @@
       overlay.style.right = 'auto';
       overlay.style.left = `${Math.max(0, Math.min(newX, maxX))}px`;
       overlay.style.top = `${Math.max(0, Math.min(newY, maxY))}px`;
-    });
+    };
 
-    document.addEventListener('mouseup', () => {
+    const endDrag = () => {
       if (isDragging) {
         isDragging = false;
         header.classList.remove('dragging');
         overlay.classList.remove('dragging');
       }
+    };
+
+    // Mouse events
+    header.addEventListener('mousedown', (e) => {
+      if (e.target.closest('.repolens-header-btn')) return;
+      if (e.button !== 0) return;
+      startDrag(e.clientX, e.clientY);
+      e.preventDefault();
     });
+
+    document.addEventListener('mousemove', (e) => {
+      moveDrag(e.clientX, e.clientY);
+    });
+
+    document.addEventListener('mouseup', endDrag);
+
+    // Touch events for mobile
+    header.addEventListener('touchstart', (e) => {
+      if (e.target.closest('.repolens-header-btn')) return;
+      if (!e.touches.length) return;
+      const touch = e.touches[0];
+      startDrag(touch.clientX, touch.clientY);
+      e.preventDefault();
+    }, { passive: false });
+
+    document.addEventListener('touchmove', (e) => {
+      if (!e.touches.length || !isDragging) return;
+      const touch = e.touches[0];
+      moveDrag(touch.clientX, touch.clientY);
+      e.preventDefault();
+    }, { passive: false });
+
+    document.addEventListener('touchend', endDrag);
+    document.addEventListener('touchcancel', endDrag);
   }
 
   /**
-   * Setup overlay resizing
+   * Setup overlay resizing (with touch support for mobile)
    */
   function setupOverlayResize(overlay) {
     const resizeHandle = document.getElementById('repolens-resize');
@@ -618,34 +747,70 @@
 
     let isResizing = false;
     let startX, startY, initialWidth, initialHeight;
+    let isMobile = false;
 
-    resizeHandle.addEventListener('mousedown', (e) => {
-      if (e.button !== 0) return;
+    const startResize = (clientX, clientY) => {
       isResizing = true;
-      startX = e.clientX;
-      startY = e.clientY;
+      startX = clientX;
+      startY = clientY;
       initialWidth = overlay.offsetWidth;
       initialHeight = overlay.offsetHeight;
+      // Cache mobile check at start of resize to avoid repeated layout queries
+      isMobile = window.innerWidth <= MOBILE_BREAKPOINT;
+    };
+
+    const moveResize = (clientX, clientY) => {
+      if (!isResizing) return;
+      const dx = clientX - startX;
+      const dy = clientY - startY;
+
+      // Use smaller minimum width for mobile (cached at start)
+      const minWidth = isMobile ? 280 : 400;
+      const minHeight = isMobile ? 200 : 300;
+
+      const newWidth = Math.max(minWidth, initialWidth + dx);
+      const newHeight = Math.max(minHeight, initialHeight + dy);
+
+      overlay.style.width = `${newWidth}px`;
+      overlay.style.height = `${newHeight}px`;
+    };
+
+    const endResize = () => {
+      if (isResizing) {
+        isResizing = false;
+      }
+    };
+
+    // Mouse events
+    resizeHandle.addEventListener('mousedown', (e) => {
+      if (e.button !== 0) return;
+      startResize(e.clientX, e.clientY);
       e.preventDefault();
     });
 
     document.addEventListener('mousemove', (e) => {
-      if (!isResizing) return;
-      const dx = e.clientX - startX;
-      const dy = e.clientY - startY;
-
-      const newWidth = Math.max(400, initialWidth + dx);
-      const newHeight = Math.max(300, initialHeight + dy);
-
-      overlay.style.width = `${newWidth}px`;
-      overlay.style.height = `${newHeight}px`;
+      moveResize(e.clientX, e.clientY);
     });
 
-    document.addEventListener('mouseup', () => {
-      if (isResizing) {
-        isResizing = false;
-      }
-    });
+    document.addEventListener('mouseup', endResize);
+
+    // Touch events for mobile
+    resizeHandle.addEventListener('touchstart', (e) => {
+      if (!e.touches.length) return;
+      const touch = e.touches[0];
+      startResize(touch.clientX, touch.clientY);
+      e.preventDefault();
+    }, { passive: false });
+
+    document.addEventListener('touchmove', (e) => {
+      if (!e.touches.length || !isResizing) return;
+      const touch = e.touches[0];
+      moveResize(touch.clientX, touch.clientY);
+      e.preventDefault();
+    }, { passive: false });
+
+    document.addEventListener('touchend', endResize);
+    document.addEventListener('touchcancel', endResize);
   }
 
   /**

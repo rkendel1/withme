@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import {
   FolderGit2,
   FileText,
@@ -14,6 +14,7 @@ import {
   Play,
 } from 'lucide-react';
 import { useStore } from './hooks/useStore';
+import { useOverlayMode } from './hooks/useOverlayMode';
 import { initDatabase, getAllRepositories, ensureDefaultCollection } from './db';
 import { getLLMConfig } from './services/llm';
 import { RepositoryList } from './components/RepositoryList';
@@ -50,8 +51,22 @@ function App() {
     selectedRepository,
   } = useStore();
 
+  const isOverlay = useOverlayMode();
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const hasAppliedOverlayDefaults = useRef(false);
+
+  // Apply overlay-specific defaults (collapse sidebar)
+  useEffect(() => {
+    if (isOverlay && !hasAppliedOverlayDefaults.current) {
+      // Mark as processed first to ensure effect only runs once
+      hasAppliedOverlayDefaults.current = true;
+      // In overlay mode, default to collapsed sidebar for more content space
+      if (isSidebarOpen) {
+        toggleSidebar();
+      }
+    }
+  }, [isOverlay, isSidebarOpen, toggleSidebar]);
 
   useEffect(() => {
     async function init() {
@@ -214,22 +229,33 @@ function App() {
                 <p className="text-sm mb-4">
                   Transform Git repositories into queryable databases. Add a repository to get started.
                 </p>
-                <div className="mt-6 pt-6 border-t border-gray-200 dark:border-gray-700">
-                  <p className="text-sm mb-3">
-                    <strong>Quick Start:</strong> Install the browser overlay for one-click ingestion
-                  </p>
-                  <a
-                    href="/userscript/repolens.user.js"
-                    className="inline-flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg 
-                               hover:bg-green-700 transition-colors text-sm font-medium"
-                  >
-                    <Download className="w-4 h-4" />
-                    Install Browser Overlay
-                  </a>
-                  <p className="text-xs mt-2 text-gray-400">
-                    Requires <a href="https://www.tampermonkey.net/" target="_blank" rel="noopener noreferrer" className="underline">Tampermonkey</a> or similar userscript manager
-                  </p>
-                </div>
+                {isOverlay ? (
+                  <div className="mt-6 pt-6 border-t border-gray-200 dark:border-gray-700">
+                    <p className="text-sm text-green-600 dark:text-green-400 mb-3">
+                      ✓ You&apos;re using the overlay — the current repository will be ingested automatically
+                    </p>
+                    <p className="text-xs text-gray-400">
+                      Use the sidebar navigation to explore files, symbols, architecture, and more.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="mt-6 pt-6 border-t border-gray-200 dark:border-gray-700">
+                    <p className="text-sm mb-3">
+                      <strong>Quick Start:</strong> Install the browser overlay for one-click ingestion
+                    </p>
+                    <a
+                      href="/userscript/repolens.user.js"
+                      className="inline-flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg 
+                                 hover:bg-green-700 transition-colors text-sm font-medium"
+                    >
+                      <Download className="w-4 h-4" />
+                      Install Browser Overlay
+                    </a>
+                    <p className="text-xs mt-2 text-gray-400">
+                      Requires <a href="https://www.tampermonkey.net/" target="_blank" rel="noopener noreferrer" className="underline">Tampermonkey</a> or similar userscript manager
+                    </p>
+                  </div>
+                )}
               </div>
             </div>
           )}
