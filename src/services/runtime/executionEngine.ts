@@ -30,7 +30,7 @@ import type {
   RuntimeProvider,
   PreviewType,
 } from '../../types/runtime';
-import { DEFAULT_EXECUTION_CONFIG } from '../../types/runtime';
+import { DEFAULT_EXECUTION_CONFIG, DEFAULT_REMOTE_PREVIEW_URL } from '../../types/runtime';
 import {
   createExecutionSession,
   updateExecutionSession,
@@ -597,10 +597,16 @@ async function executeRemoteSandbox(
     throw new Error(`Session ${sessionId} not found`);
   }
 
-  // Generate a unique sandbox ID
-  const sandboxId = typeof crypto !== 'undefined' && crypto.randomUUID
-    ? crypto.randomUUID().substring(0, 8)
-    : Date.now().toString(36);
+  // Generate a unique sandbox ID with robust fallback
+  let sandboxId: string;
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+    sandboxId = crypto.randomUUID().substring(0, 8);
+  } else {
+    // Fallback: combine timestamp with random component for uniqueness
+    const timestamp = Date.now().toString(36);
+    const random = Math.random().toString(36).substring(2, 6);
+    sandboxId = `${timestamp}-${random}`;
+  }
 
   // Update status to creating remote sandbox
   await updateExecutionSession(sessionId, {
@@ -662,8 +668,8 @@ async function executeRemoteSandbox(
 
   await delay(1500);
 
-  // Generate secure preview URL (HTTPS)
-  const previewUrl = `https://session-${sandboxId}.preview.repolens.app`;
+  // Generate secure preview URL (HTTPS) using the configured base URL with proxy path
+  const previewUrl = `${DEFAULT_REMOTE_PREVIEW_URL}/preview/session-${sandboxId}`;
   
   // No port mappings for remote - access is via HTTPS URL
   const ports: PortMapping[] = profile.ports.map((port) => ({

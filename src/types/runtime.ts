@@ -83,6 +83,13 @@ export type ExecutionMode =
   | 'analysis';    // Analysis-only mode (no execution)
 
 // ============================================================================
+// Remote Execution Configuration
+// ============================================================================
+
+/** Default base URL for remote preview proxy */
+export const DEFAULT_REMOTE_PREVIEW_URL = 'https://withme-w3kh.onrender.com';
+
+// ============================================================================
 // Device Capability Types
 // ============================================================================
 

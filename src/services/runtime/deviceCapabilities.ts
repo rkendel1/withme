@@ -16,6 +16,7 @@ import type {
   RuntimeProvider,
   PreviewType,
 } from '../../types/runtime';
+import { DEFAULT_REMOTE_PREVIEW_URL } from '../../types/runtime';
 
 // ============================================================================
 // Device Detection
@@ -413,13 +414,13 @@ export class RuntimeProviderSelector {
     port?: number;
     baseRemoteUrl?: string;
   }): string | null {
-    const { sessionId, port = 3000, baseRemoteUrl = 'https://preview.repolens.app' } = options;
+    const { sessionId, port = 3000, baseRemoteUrl = DEFAULT_REMOTE_PREVIEW_URL } = options;
     
     switch (this.strategy.previewType) {
       case 'localhost':
         return `http://localhost:${port}`;
       case 'https':
-        return `${baseRemoteUrl}/session-${sessionId}`;
+        return `${baseRemoteUrl}/preview/session-${sessionId}`;
       case 'embedded':
         return `embedded://preview/${sessionId}`;
       case 'none':
