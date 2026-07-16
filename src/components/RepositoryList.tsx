@@ -1,8 +1,29 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { FolderGit2, Plus, Trash2, ExternalLink, Loader2 } from 'lucide-react';
 import { useStore } from '../hooks/useStore';
-import { ingestGitHubRepository, IngestionProgress } from '../services/github';
+import { ingestGitHubRepository, IngestionProgress, parseGitHubUrl } from '../services/github';
+import { ingestGitLabRepository, parseGitLabUrl } from '../services/gitlab';
 import { getAllRepositories, deleteRepository, getRepository, getFilesByRepository, getSymbolsByRepository } from '../db';
+import type { Platform } from '../types';
+
+/**
+ * Detect platform from URL and parse repository info
+ */
+function detectPlatformAndParse(url: string): { platform: Platform; parsed: { owner?: string; repo?: string; projectPath?: string } } | null {
+  // Try GitHub first
+  const githubParsed = parseGitHubUrl(url);
+  if (githubParsed) {
+    return { platform: 'github', parsed: githubParsed };
+  }
+
+  // Try GitLab
+  const gitlabParsed = parseGitLabUrl(url);
+  if (gitlabParsed) {
+    return { platform: 'gitlab', parsed: { projectPath: gitlabParsed.projectPath } };
+  }
+
+  return null;
+}
 
 export function RepositoryList() {
   const {
@@ -24,8 +45,9 @@ export function RepositoryList() {
   const [repoUrl, setRepoUrl] = useState('');
   const [error, setError] = useState<string | null>(null);
 
-  const handleIngest = useCallback(async () => {
-    if (!repoUrl.trim()) return;
+  const handleIngest = useCallback(async (urlToIngest?: string) => {
+    const targetUrl = urlToIngest || repoUrl.trim();
+    if (!targetUrl) return;
 
     setError(null);
     setIngesting(true);
@@ -36,7 +58,17 @@ export function RepositoryList() {
         setIngestionProgress(progress);
       };
 
-      const repoId = await ingestGitHubRepository(repoUrl.trim(), undefined, progressCallback);
+      // Detect platform and ingest accordingly
+      const detected = detectPlatformAndParse(targetUrl);
+      let repoId: number;
+
+      if (detected?.platform === 'gitlab') {
+        repoId = await ingestGitLabRepository(targetUrl, undefined, progressCallback);
+      } else {
+        // Default to GitHub
+        repoId = await ingestGitHubRepository(targetUrl, undefined, progressCallback);
+      }
+
       const repo = await getRepository(repoId);
 
       if (repo) {
@@ -58,6 +90,21 @@ export function RepositoryList() {
       setIngestionProgress(null);
     }
   }, [repoUrl, setIngesting, setIngestionProgress, addRepository, setSelectedRepository, setFiles, setSymbols, setActivePanel]);
+
+  // Handle URL parameters for userscript integration
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const ingestUrl = params.get('ingest');
+    
+    if (ingestUrl && !isIngesting) {
+      // Clear the URL parameters
+      const newUrl = window.location.pathname;
+      window.history.replaceState({}, '', newUrl);
+      
+      // Trigger ingestion
+      handleIngest(ingestUrl);
+    }
+  }, [handleIngest, isIngesting]);
 
   const handleSelectRepository = useCallback(async (repo: typeof repositories[0]) => {
     setSelectedRepository(repo);
@@ -101,13 +148,13 @@ export function RepositoryList() {
             value={repoUrl}
             onChange={(e) => setRepoUrl(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder="owner/repo or GitHub URL"
+            placeholder="GitHub or GitLab URL"
             className="flex-1 px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg 
                        bg-white dark:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
             disabled={isIngesting}
           />
           <button
-            onClick={handleIngest}
+            onClick={() => handleIngest()}
             disabled={isIngesting || !repoUrl.trim()}
             className="px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 
                        disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
@@ -149,7 +196,7 @@ export function RepositoryList() {
           <div className="p-4 text-center text-gray-500 dark:text-gray-400">
             <FolderGit2 className="w-12 h-12 mx-auto mb-2 opacity-50" />
             <p>No repositories yet</p>
-            <p className="text-sm mt-1">Add a GitHub repository to get started</p>
+            <p className="text-sm mt-1">Add a GitHub or GitLab repository to get started</p>
           </div>
         ) : (
           <ul className="divide-y divide-gray-200 dark:divide-gray-700">

@@ -9,9 +9,28 @@ CREATE TABLE IF NOT EXISTS repositories (
   url TEXT NOT NULL,
   default_branch TEXT DEFAULT 'main',
   language TEXT,
+  platform TEXT DEFAULT 'github',
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW(),
   ingested_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Collections table
+CREATE TABLE IF NOT EXISTS collections (
+  id SERIAL PRIMARY KEY,
+  name TEXT UNIQUE NOT NULL,
+  description TEXT,
+  color TEXT DEFAULT '#8b5cf6',
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Collection repositories junction table
+CREATE TABLE IF NOT EXISTS collection_repositories (
+  collection_id INTEGER NOT NULL REFERENCES collections(id) ON DELETE CASCADE,
+  repository_id INTEGER NOT NULL REFERENCES repositories(id) ON DELETE CASCADE,
+  added_at TIMESTAMPTZ DEFAULT NOW(),
+  PRIMARY KEY (collection_id, repository_id)
 );
 
 -- Directories table
@@ -127,6 +146,9 @@ CREATE INDEX IF NOT EXISTS idx_imports_source ON imports(source);
 CREATE INDEX IF NOT EXISTS idx_dependencies_repository ON dependencies(repository_id);
 CREATE INDEX IF NOT EXISTS idx_chunks_repository ON chunks(repository_id);
 CREATE INDEX IF NOT EXISTS idx_directories_repository ON directories(repository_id);
+CREATE INDEX IF NOT EXISTS idx_collections_name ON collections(name);
+CREATE INDEX IF NOT EXISTS idx_collection_repositories_collection ON collection_repositories(collection_id);
+CREATE INDEX IF NOT EXISTS idx_collection_repositories_repository ON collection_repositories(repository_id);
 `;
 
 export const MIGRATIONS = [

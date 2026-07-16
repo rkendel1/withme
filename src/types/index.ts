@@ -190,3 +190,45 @@ export interface GitHubTree {
   tree: GitHubTreeItem[];
   truncated: boolean;
 }
+
+/** GitLab API types */
+export interface GitLabProject {
+  id: number;
+  name: string;
+  path: string;
+  path_with_namespace: string;
+  description: string | null;
+  web_url: string;
+  default_branch: string;
+  visibility: string;
+  created_at: string;
+  last_activity_at: string;
+}
+
+export interface GitLabTreeItem {
+  id: string;
+  name: string;
+  type: 'blob' | 'tree';
+  path: string;
+  mode: string;
+}
+
+/** Collection for organizing repositories */
+export interface Collection {
+  id: number;
+  name: string;
+  description: string | null;
+  color: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+/** Relationship between collection and repository */
+export interface CollectionRepository {
+  collectionId: number;
+  repositoryId: number;
+  addedAt: Date;
+}
+
+/** Platform type for ingestion */
+export type Platform = 'github' | 'gitlab';
