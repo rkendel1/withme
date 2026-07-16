@@ -59,6 +59,7 @@ function App() {
   // Apply overlay-specific defaults (collapse sidebar)
   useEffect(() => {
     if (isOverlay && !hasAppliedOverlayDefaults.current) {
+      // Mark as processed first to ensure effect only runs once
       hasAppliedOverlayDefaults.current = true;
       // In overlay mode, default to collapsed sidebar for more content space
       if (isSidebarOpen) {
