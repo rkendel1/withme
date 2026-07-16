@@ -171,6 +171,69 @@ CREATE INDEX IF NOT EXISTS idx_container_events_timestamp ON container_events(ti
 CREATE INDEX IF NOT EXISTS idx_execution_logs_session ON execution_logs(session_id);
 CREATE INDEX IF NOT EXISTS idx_execution_logs_timestamp ON execution_logs(timestamp);
 CREATE INDEX IF NOT EXISTS idx_execution_logs_level ON execution_logs(level);
+
+-- ============================================================================
+-- Migration: Add missing columns to execution_sessions for existing databases
+-- These columns may not exist in older database versions
+-- ============================================================================
+DO $$
+BEGIN
+  -- Add device_type column if it doesn't exist
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns 
+    WHERE table_name = 'execution_sessions' AND column_name = 'device_type'
+  ) THEN
+    ALTER TABLE execution_sessions ADD COLUMN device_type TEXT;
+  END IF;
+
+  -- Add provider column if it doesn't exist
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns 
+    WHERE table_name = 'execution_sessions' AND column_name = 'provider'
+  ) THEN
+    ALTER TABLE execution_sessions ADD COLUMN provider TEXT;
+  END IF;
+
+  -- Add preview_type column if it doesn't exist
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns 
+    WHERE table_name = 'execution_sessions' AND column_name = 'preview_type'
+  ) THEN
+    ALTER TABLE execution_sessions ADD COLUMN preview_type TEXT;
+  END IF;
+
+  -- Add command column if it doesn't exist
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns 
+    WHERE table_name = 'execution_sessions' AND column_name = 'command'
+  ) THEN
+    ALTER TABLE execution_sessions ADD COLUMN command TEXT;
+  END IF;
+
+  -- Add working_directory column if it doesn't exist
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns 
+    WHERE table_name = 'execution_sessions' AND column_name = 'working_directory'
+  ) THEN
+    ALTER TABLE execution_sessions ADD COLUMN working_directory TEXT;
+  END IF;
+
+  -- Add preview_url column if it doesn't exist
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns 
+    WHERE table_name = 'execution_sessions' AND column_name = 'preview_url'
+  ) THEN
+    ALTER TABLE execution_sessions ADD COLUMN preview_url TEXT;
+  END IF;
+
+  -- Add port_mapping column if it doesn't exist
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns 
+    WHERE table_name = 'execution_sessions' AND column_name = 'port_mapping'
+  ) THEN
+    ALTER TABLE execution_sessions ADD COLUMN port_mapping JSONB DEFAULT '{}';
+  END IF;
+END $$;
 `;
 
 export const RUNTIME_MIGRATION = {
