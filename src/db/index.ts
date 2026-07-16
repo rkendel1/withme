@@ -609,9 +609,7 @@ export async function getCollectionRepositoryCount(collectionId: number): Promis
     'SELECT COUNT(*) as count FROM collection_repositories WHERE collection_id = $1',
     [collectionId]
   );
-  const countStr = String(result[0].count);
-  const count = parseInt(countStr, 10);
-  return isNaN(count) ? 0 : count;
+  return Number(result[0].count) || 0;
 }
 
 // Ensure default collection exists
