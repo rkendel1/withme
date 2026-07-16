@@ -181,7 +181,7 @@ BEGIN
   -- Add device_type column if it doesn't exist
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns 
-    WHERE table_name = 'execution_sessions' AND column_name = 'device_type'
+    WHERE table_schema = 'public' AND table_name = 'execution_sessions' AND column_name = 'device_type'
   ) THEN
     ALTER TABLE execution_sessions ADD COLUMN device_type TEXT;
   END IF;
@@ -189,7 +189,7 @@ BEGIN
   -- Add provider column if it doesn't exist
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns 
-    WHERE table_name = 'execution_sessions' AND column_name = 'provider'
+    WHERE table_schema = 'public' AND table_name = 'execution_sessions' AND column_name = 'provider'
   ) THEN
     ALTER TABLE execution_sessions ADD COLUMN provider TEXT;
   END IF;
@@ -197,7 +197,7 @@ BEGIN
   -- Add preview_type column if it doesn't exist
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns 
-    WHERE table_name = 'execution_sessions' AND column_name = 'preview_type'
+    WHERE table_schema = 'public' AND table_name = 'execution_sessions' AND column_name = 'preview_type'
   ) THEN
     ALTER TABLE execution_sessions ADD COLUMN preview_type TEXT;
   END IF;
@@ -205,7 +205,7 @@ BEGIN
   -- Add command column if it doesn't exist
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns 
-    WHERE table_name = 'execution_sessions' AND column_name = 'command'
+    WHERE table_schema = 'public' AND table_name = 'execution_sessions' AND column_name = 'command'
   ) THEN
     ALTER TABLE execution_sessions ADD COLUMN command TEXT;
   END IF;
@@ -213,7 +213,7 @@ BEGIN
   -- Add working_directory column if it doesn't exist
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns 
-    WHERE table_name = 'execution_sessions' AND column_name = 'working_directory'
+    WHERE table_schema = 'public' AND table_name = 'execution_sessions' AND column_name = 'working_directory'
   ) THEN
     ALTER TABLE execution_sessions ADD COLUMN working_directory TEXT;
   END IF;
@@ -221,7 +221,7 @@ BEGIN
   -- Add preview_url column if it doesn't exist
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns 
-    WHERE table_name = 'execution_sessions' AND column_name = 'preview_url'
+    WHERE table_schema = 'public' AND table_name = 'execution_sessions' AND column_name = 'preview_url'
   ) THEN
     ALTER TABLE execution_sessions ADD COLUMN preview_url TEXT;
   END IF;
@@ -229,7 +229,7 @@ BEGIN
   -- Add port_mapping column if it doesn't exist
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.columns 
-    WHERE table_name = 'execution_sessions' AND column_name = 'port_mapping'
+    WHERE table_schema = 'public' AND table_name = 'execution_sessions' AND column_name = 'port_mapping'
   ) THEN
     ALTER TABLE execution_sessions ADD COLUMN port_mapping JSONB DEFAULT '{}';
   END IF;
