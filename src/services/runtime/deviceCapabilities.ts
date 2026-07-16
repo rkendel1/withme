@@ -517,7 +517,8 @@ export function createMockCapabilities(type: 'desktop-full' | 'desktop-browser' 
         localFilesystem: false,
         containerRuntime: false,
         localhostPorts: false,
-        backgroundExecution: false,
+        // Tablets (especially iPads) have better background execution support than phones
+        backgroundExecution: true,
         wasmSupport: true,
         remoteExecutionAvailable: true,
         serviceWorkerSupport: true,

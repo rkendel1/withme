@@ -598,6 +598,9 @@ async function executeRemoteSandbox(
   }
 
   // Generate a unique sandbox ID with robust fallback
+  // Note: sandboxId is a short unique identifier for the sandbox instance and preview URL,
+  // while sessionId is the internal tracking identifier. The sandbox stores a reference
+  // to sessionId via containerId field (sandbox-{sandboxId}).
   let sandboxId: string;
   if (typeof crypto !== 'undefined' && crypto.randomUUID) {
     sandboxId = crypto.randomUUID().substring(0, 8);
