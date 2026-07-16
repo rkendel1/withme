@@ -1,24 +1,9 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { Send, Loader2, MessageSquare, Bot, User, FileText, Code2 } from 'lucide-react';
 import { useStore } from '../hooks/useStore';
-import { useOverlayMode } from '../hooks/useOverlayMode';
+import { useOverlayMode, sendStatusToParent } from '../hooks/useOverlayMode';
 import { queryRepository } from '../services/llm';
 import type { QueryResult } from '../types';
-
-// Helper to send status to parent overlay
-function sendStatusToParent(status: string, loading = false) {
-  try {
-    if (window.self !== window.top) {
-      window.parent.postMessage({
-        type: 'REPOLENS_STATUS',
-        status,
-        loading,
-      }, '*');
-    }
-  } catch {
-    // Ignore cross-origin errors
-  }
-}
 
 export function QueryInterface() {
   const {

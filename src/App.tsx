@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef, useCallback } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import {
   FolderGit2,
   FileText,
@@ -14,7 +14,7 @@ import {
   Play,
 } from 'lucide-react';
 import { useStore } from './hooks/useStore';
-import { useOverlayMode } from './hooks/useOverlayMode';
+import { useOverlayMode, sendStatusToParent } from './hooks/useOverlayMode';
 import { initDatabase, getAllRepositories, ensureDefaultCollection } from './db';
 import { getLLMConfig } from './services/llm';
 import { RepositoryList } from './components/RepositoryList';
@@ -69,21 +69,6 @@ function App() {
     }
   }, [isOverlay, isSidebarOpen, toggleSidebar]);
 
-  // Send status updates to parent frame (overlay)
-  const sendStatusToParent = useCallback((status: string, loading = false, data?: Record<string, unknown>) => {
-    if (!isOverlay) return;
-    try {
-      window.parent.postMessage({
-        type: 'REPOLENS_STATUS',
-        status,
-        loading,
-        ...data,
-      }, '*');
-    } catch {
-      // Ignore cross-origin errors
-    }
-  }, [isOverlay]);
-
   // Listen for messages from the overlay parent frame
   useEffect(() => {
     if (!isOverlay) return;
@@ -120,7 +105,7 @@ function App() {
 
     window.addEventListener('message', handleMessage);
     return () => window.removeEventListener('message', handleMessage);
-  }, [isOverlay, setActivePanel, sendStatusToParent, selectedRepository, isIngesting, activePanel]);
+  }, [isOverlay, setActivePanel, selectedRepository, isIngesting, activePanel]);
 
   // Notify parent frame when app is ready
   useEffect(() => {
@@ -131,14 +116,14 @@ function App() {
         { ready: true, hasRepository: !!selectedRepository }
       );
     }
-  }, [isLoading, error, selectedRepository, sendStatusToParent]);
+  }, [isLoading, error, selectedRepository]);
 
   // Notify parent frame when ingestion status changes
   useEffect(() => {
     if (isIngesting) {
       sendStatusToParent('Ingesting repository...', true);
     }
-  }, [isIngesting, sendStatusToParent]);
+  }, [isIngesting]);
 
   useEffect(() => {
     async function init() {
@@ -168,7 +153,7 @@ function App() {
     }
 
     init();
-  }, [setDbInitialized, setRepositories, setLLMConfig, sendStatusToParent]);
+  }, [setDbInitialized, setRepositories, setLLMConfig]);
 
   if (isLoading) {
     return (

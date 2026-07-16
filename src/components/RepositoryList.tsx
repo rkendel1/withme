@@ -1,28 +1,12 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { FolderGit2, Plus, Trash2, ExternalLink, Loader2, Upload, FolderOpen, Archive } from 'lucide-react';
 import { useStore } from '../hooks/useStore';
-import { useOverlayMode } from '../hooks/useOverlayMode';
+import { useOverlayMode, sendStatusToParent } from '../hooks/useOverlayMode';
 import { ingestGitHubRepository, IngestionProgress, parseGitHubUrl } from '../services/github';
 import { ingestGitLabRepository, parseGitLabUrl } from '../services/gitlab';
 import { acquireRepository } from '../services/acquisition';
 import { getAllRepositories, deleteRepository, getRepository, getFilesByRepository, getSymbolsByRepository } from '../db';
 import type { Platform, AcquisitionProgress } from '../types';
-
-// Helper to send status to parent overlay
-function sendStatusToParent(status: string, loading = false, data?: Record<string, unknown>) {
-  try {
-    if (window.self !== window.top) {
-      window.parent.postMessage({
-        type: 'REPOLENS_STATUS',
-        status,
-        loading,
-        ...data,
-      }, '*');
-    }
-  } catch {
-    // Ignore cross-origin errors
-  }
-}
 
 /**
  * Detect platform from URL and parse repository info
