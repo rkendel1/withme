@@ -327,7 +327,17 @@ export interface ZipSourceDetails {
 // Default Configuration
 // ============================================================================
 
-/** Default exclude patterns for folder/ZIP import */
+/**
+ * Default exclude patterns for folder/ZIP import
+ * These patterns are applied during import to skip common non-essential files
+ * and directories. Users can override these by providing custom excludePatterns
+ * in FolderImportOptions or ZipImportOptions.
+ * 
+ * Patterns support:
+ * - '**' for recursive directory matching
+ * - '*' prefix for extension matching
+ * - Exact file/folder name matching
+ */
 export const DEFAULT_EXCLUDE_PATTERNS = [
   'node_modules/**',
   '.git/**',

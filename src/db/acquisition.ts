@@ -143,15 +143,15 @@ export async function upsertContentHash(
 /**
  * Bulk upsert content hashes
  * Uses Promise.all for concurrent processing in batches
+ * Batch size of 50 balances memory usage with database connection overhead
  */
 export async function upsertContentHashes(
   repositoryId: number,
   hashes: ContentHash[]
 ): Promise<void> {
-  // Process in batches of 50 for balanced performance
-  const batchSize = 50;
-  for (let i = 0; i < hashes.length; i += batchSize) {
-    const batch = hashes.slice(i, i + batchSize);
+  const BATCH_SIZE = 50; // Optimal for PGlite connection pooling
+  for (let i = 0; i < hashes.length; i += BATCH_SIZE) {
+    const batch = hashes.slice(i, i + BATCH_SIZE);
     await Promise.all(batch.map(hash => upsertContentHash(repositoryId, hash)));
   }
 }

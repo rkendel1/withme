@@ -98,10 +98,12 @@ async function parseZipFile(file: File): Promise<Map<string, ArrayBuffer>> {
     }
     
     // Parse local file header
+    // Reference: https://pkware.cachefly.net/webdocs/casestudies/APPNOTE.TXT (4.3.7)
     const flags = view.getUint16(offset + 6, true);
     const compressionMethod = view.getUint16(offset + 8, true);
     const compressedSize = view.getUint32(offset + 18, true);
-    // uncompressedSize available at offset + 22 but not used
+    // Note: uncompressedSize at offset + 22 is not needed for basic extraction
+    // since we rely on DecompressionStream to handle decompression bounds
     const fileNameLength = view.getUint16(offset + 26, true);
     const extraFieldLength = view.getUint16(offset + 28, true);
     
@@ -228,8 +230,11 @@ export async function parseZipImport(
       try {
         content = new TextDecoder().decode(data);
         // Check if content looks like binary (has many non-printable chars)
+        // Threshold: 10% non-printable characters indicates binary content
+        // This is a common heuristic used by tools like Git and file(1)
         // Use a loop with early exit for efficiency
-        const threshold = content.length * 0.1;
+        const BINARY_THRESHOLD = 0.1;
+        const threshold = content.length * BINARY_THRESHOLD;
         let nonPrintableCount = 0;
         for (let i = 0; i < content.length; i++) {
           const code = content.charCodeAt(i);
