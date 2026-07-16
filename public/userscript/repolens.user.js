@@ -601,6 +601,16 @@
       50% { opacity: 0.5; }
     }
 
+    .repolens-status-indicator.ready {
+      background: #22c55e;
+      box-shadow: 0 0 6px #22c55e;
+    }
+
+    .repolens-status-indicator.error {
+      background: #ef4444;
+      box-shadow: 0 0 6px #ef4444;
+    }
+
     /* Minimized state */
     #${OVERLAY_ID}.minimized {
       width: 280px;
@@ -1626,6 +1636,39 @@
   }
 
   /**
+   * Setup listener for messages from the iframe app
+   */
+  function setupIframeMessageListener() {
+    window.addEventListener('message', (event) => {
+      // Only accept messages from our iframe
+      const iframe = document.getElementById(IFRAME_ID);
+      if (!iframe || event.source !== iframe.contentWindow) return;
+
+      const { type, status, loading, hasRepository, repositoryName, error, ready } = event.data || {};
+
+      if (type === 'REPOLENS_STATUS') {
+        // Update status bar with message from app
+        updateStatus(status, loading);
+
+        // Update the repo badge if repository info is provided
+        if (hasRepository && repositoryName) {
+          const badge = document.querySelector('.repolens-repo-badge span');
+          if (badge) {
+            badge.textContent = repositoryName;
+          }
+        }
+
+        // Show/hide ready indicator
+        const indicator = document.getElementById('repolens-status-indicator');
+        if (indicator) {
+          indicator.classList.toggle('ready', ready && !loading && !error);
+          indicator.classList.toggle('error', !!error);
+        }
+      }
+    });
+  }
+
+  /**
    * Initialize the userscript
    */
   function init() {
@@ -1637,6 +1680,9 @@
       styleEl.textContent = styles;
       document.head.appendChild(styleEl);
     }
+
+    // Setup message listener for iframe communication
+    setupIframeMessageListener();
 
     // Check if we're on a repo page and create button
     if (isRepoPage()) {

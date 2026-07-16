@@ -1,6 +1,7 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { FolderGit2, Plus, Trash2, ExternalLink, Loader2, Upload, FolderOpen, Archive } from 'lucide-react';
 import { useStore } from '../hooks/useStore';
+import { useOverlayMode, sendStatusToParent } from '../hooks/useOverlayMode';
 import { ingestGitHubRepository, IngestionProgress, parseGitHubUrl } from '../services/github';
 import { ingestGitLabRepository, parseGitLabUrl } from '../services/gitlab';
 import { acquireRepository } from '../services/acquisition';
@@ -43,6 +44,7 @@ export function RepositoryList() {
     setActivePanel,
   } = useStore();
 
+  const isOverlay = useOverlayMode();
   const [repoUrl, setRepoUrl] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [showImportOptions, setShowImportOptions] = useState(false);
@@ -63,8 +65,17 @@ export function RepositoryList() {
       setFiles(files);
       setSymbols(symbols);
       setActivePanel('files');
+      
+      // Notify parent overlay of successful acquisition
+      if (isOverlay) {
+        sendStatusToParent(`Repository: ${repo.fullName}`, false, {
+          hasRepository: true,
+          repositoryName: repo.fullName,
+          ready: true,
+        });
+      }
     }
-  }, [addRepository, setSelectedRepository, setFiles, setSymbols, setActivePanel]);
+  }, [addRepository, setSelectedRepository, setFiles, setSymbols, setActivePanel, isOverlay]);
 
   const handleIngest = useCallback(async (urlToIngest?: string) => {
     const targetUrl = urlToIngest || repoUrl.trim();
@@ -73,10 +84,18 @@ export function RepositoryList() {
     setError(null);
     setIngesting(true);
     setIngestionProgress(null);
+    
+    if (isOverlay) {
+      sendStatusToParent('Ingesting repository...', true);
+    }
 
     try {
       const progressCallback = (progress: IngestionProgress) => {
         setIngestionProgress(progress);
+        // Send progress to parent overlay
+        if (isOverlay) {
+          sendStatusToParent(`${progress.message} (${progress.current}/${progress.total})`, true);
+        }
       };
 
       // Detect platform and ingest accordingly
@@ -92,12 +111,17 @@ export function RepositoryList() {
 
       await handleAcquisitionComplete(repoId);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to ingest repository');
+      const errorMsg = err instanceof Error ? err.message : 'Failed to ingest repository';
+      setError(errorMsg);
+      
+      if (isOverlay) {
+        sendStatusToParent(`Error: ${errorMsg}`, false, { error: true });
+      }
     } finally {
       setIngesting(false);
       setIngestionProgress(null);
     }
-  }, [repoUrl, setIngesting, setIngestionProgress, handleAcquisitionComplete]);
+  }, [repoUrl, setIngesting, setIngestionProgress, handleAcquisitionComplete, isOverlay]);
 
   const handleFolderImport = useCallback(async (files: FileList | null) => {
     if (!files || files.length === 0) return;

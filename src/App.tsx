@@ -14,7 +14,7 @@ import {
   Play,
 } from 'lucide-react';
 import { useStore } from './hooks/useStore';
-import { useOverlayMode } from './hooks/useOverlayMode';
+import { useOverlayMode, sendStatusToParent } from './hooks/useOverlayMode';
 import { initDatabase, getAllRepositories, ensureDefaultCollection } from './db';
 import { getLLMConfig } from './services/llm';
 import { RepositoryList } from './components/RepositoryList';
@@ -49,6 +49,7 @@ function App() {
     isSidebarOpen,
     toggleSidebar,
     selectedRepository,
+    isIngesting,
   } = useStore();
 
   const isOverlay = useOverlayMode();
@@ -80,21 +81,53 @@ function App() {
         const validPanels = ['repositories', 'collections', 'files', 'symbols', 'architecture', 'runtime', 'query', 'settings'];
         if (validPanels.includes(panel)) {
           setActivePanel(panel as typeof activePanel);
+          sendStatusToParent(`Navigated to ${panel}`);
         }
       } else if (type === 'REPOLENS_QUERY' && query) {
         // Navigate to query panel and trigger a query
         setActivePanel('query');
+        sendStatusToParent('Processing query...', true);
         // Dispatch a custom event that QueryInterface can listen to
         window.dispatchEvent(new CustomEvent('repolens-query', { detail: { query } }));
+      } else if (type === 'REPOLENS_GET_STATUS') {
+        // Parent is requesting current status
+        sendStatusToParent(
+          selectedRepository ? `Repository: ${selectedRepository.fullName}` : 'Ready',
+          isIngesting,
+          { 
+            hasRepository: !!selectedRepository,
+            repositoryName: selectedRepository?.fullName,
+            activePanel,
+          }
+        );
       }
     };
 
     window.addEventListener('message', handleMessage);
     return () => window.removeEventListener('message', handleMessage);
-  }, [isOverlay, setActivePanel]);
+  }, [isOverlay, setActivePanel, selectedRepository, isIngesting, activePanel]);
+
+  // Notify parent frame when app is ready
+  useEffect(() => {
+    if (!isLoading && !error) {
+      sendStatusToParent(
+        selectedRepository ? `Repository: ${selectedRepository.fullName}` : 'Ready',
+        false,
+        { ready: true, hasRepository: !!selectedRepository }
+      );
+    }
+  }, [isLoading, error, selectedRepository]);
+
+  // Notify parent frame when ingestion status changes
+  useEffect(() => {
+    if (isIngesting) {
+      sendStatusToParent('Ingesting repository...', true);
+    }
+  }, [isIngesting]);
 
   useEffect(() => {
     async function init() {
+      sendStatusToParent('Initializing database...', true);
       try {
         await initDatabase();
         setDbInitialized(true);
@@ -109,8 +142,11 @@ function App() {
         if (llmConfig) {
           setLLMConfig(llmConfig);
         }
+        sendStatusToParent('Ready', false, { ready: true });
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to initialize database');
+        const errorMsg = err instanceof Error ? err.message : 'Failed to initialize database';
+        setError(errorMsg);
+        sendStatusToParent(`Error: ${errorMsg}`, false, { error: true });
       } finally {
         setIsLoading(false);
       }
