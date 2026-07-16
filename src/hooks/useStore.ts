@@ -1,7 +1,8 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { Repository, LLMConfig, QueryResult, RepoFile, Symbol } from '../types';
-import { IngestionProgress } from '../services/github';
+import type { IngestionProgress } from '../services/github';
+import { STORAGE_KEYS } from '../constants';
 
 interface AppState {
   // Database state
@@ -110,7 +111,7 @@ export const useStore = create<AppState>()(
       toggleSidebar: () => set((state) => ({ isSidebarOpen: !state.isSidebarOpen })),
     }),
     {
-      name: 'repolens-storage',
+      name: STORAGE_KEYS.ZUSTAND_STORE,
       partialize: (state) => ({
         llmConfig: state.llmConfig,
         activePanel: state.activePanel,

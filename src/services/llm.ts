@@ -1,11 +1,14 @@
 import type { LLMConfig, QueryResult, QuerySource, Repository } from '../types';
 import { query, getRepositoryStats, searchFiles, searchSymbols } from '../db';
+import { STORAGE_KEYS } from '../constants';
 
 /**
  * Get LLM configuration from settings
+ * Note: API keys are stored in browser localStorage for local-first operation.
+ * Users are responsible for securing their browser environment.
  */
 export async function getLLMConfig(): Promise<LLMConfig | null> {
-  const configStr = localStorage.getItem('repolens_llm_config');
+  const configStr = localStorage.getItem(STORAGE_KEYS.LLM_CONFIG);
   if (!configStr) return null;
   try {
     return JSON.parse(configStr);
@@ -16,9 +19,10 @@ export async function getLLMConfig(): Promise<LLMConfig | null> {
 
 /**
  * Save LLM configuration to settings
+ * Note: API keys are stored in browser localStorage for local-first operation.
  */
 export async function saveLLMConfig(config: LLMConfig): Promise<void> {
-  localStorage.setItem('repolens_llm_config', JSON.stringify(config));
+  localStorage.setItem(STORAGE_KEYS.LLM_CONFIG, JSON.stringify(config));
 }
 
 /**
@@ -226,8 +230,7 @@ export async function queryRepository(
       const { results, sources: sqlSources } = await executeSQL(generatedSql, repository.id);
       sources.push(...sqlSources);
       sqlUsed = generatedSql;
-      // Add SQL results to context
-      // context += `\nSQL Results:\n${JSON.stringify(results, null, 2)}\n`;
+      // TODO: Incorporate SQL results into context for LLM when SQL generation is implemented
       console.log('SQL Results:', results);
     } catch (error) {
       console.error('SQL execution error:', error);

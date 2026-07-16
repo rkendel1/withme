@@ -277,38 +277,52 @@ function extractImports(
   const imports: Array<Omit<import('../types').Import, 'id'>> = [];
   const lines = content.split('\n');
 
-  const importRegex = /^import\s+(?:(\{[^}]+\})|(\w+)(?:\s*,\s*\{[^}]+\})?)\s+from\s+['"]([^'"]+)['"]/;
+  // Pattern for named imports: import { foo, bar } from 'module'
+  const namedImportRegex = /^import\s+\{([^}]+)\}\s+from\s+['"]([^'"]+)['"]/;
+  // Pattern for default imports: import foo from 'module'
   const defaultImportRegex = /^import\s+(\w+)\s+from\s+['"]([^'"]+)['"]/;
+  // Pattern for mixed imports: import foo, { bar } from 'module'
+  const mixedImportRegex = /^import\s+(\w+)\s*,\s*\{([^}]+)\}\s+from\s+['"]([^'"]+)['"]/;
 
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i].trim();
 
-    const match = line.match(importRegex);
-    if (match) {
-      const namedImports = match[1];
-      const defaultImport = match[2];
-      const source = match[3];
-
-      const specifiers: string[] = [];
-      if (namedImports) {
-        const names = namedImports.replace(/[{}]/g, '').split(',').map((s) => s.trim());
-        specifiers.push(...names);
-      }
-      if (defaultImport) {
-        specifiers.push(defaultImport);
-      }
+    // Try mixed imports first (most specific)
+    const mixedMatch = line.match(mixedImportRegex);
+    if (mixedMatch) {
+      const defaultImport = mixedMatch[1];
+      const namedImports = mixedMatch[2].split(',').map((s) => s.trim()).filter(Boolean);
+      const source = mixedMatch[3];
 
       imports.push({
         fileId,
         repositoryId,
         source,
-        specifiers,
-        isDefault: !!defaultImport,
+        specifiers: [defaultImport, ...namedImports],
+        isDefault: true,
         line: i + 1,
       });
       continue;
     }
 
+    // Try named imports
+    const namedMatch = line.match(namedImportRegex);
+    if (namedMatch) {
+      const namedImports = namedMatch[1].split(',').map((s) => s.trim()).filter(Boolean);
+      const source = namedMatch[2];
+
+      imports.push({
+        fileId,
+        repositoryId,
+        source,
+        specifiers: namedImports,
+        isDefault: false,
+        line: i + 1,
+      });
+      continue;
+    }
+
+    // Try default imports
     const defaultMatch = line.match(defaultImportRegex);
     if (defaultMatch) {
       imports.push({
