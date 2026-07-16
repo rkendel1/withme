@@ -11,6 +11,7 @@ import {
   FolderOpen,
   Layers,
   Download,
+  Play,
 } from 'lucide-react';
 import { useStore } from './hooks/useStore';
 import { initDatabase, getAllRepositories, ensureDefaultCollection } from './db';
@@ -23,6 +24,7 @@ import { QueryInterface } from './components/QueryInterface';
 import { Settings } from './components/Settings';
 import { Collections } from './components/Collections';
 import { ArchitecturePanel } from './components/ArchitecturePanel';
+import { RuntimePanel } from './components/RuntimePanel';
 import './App.css';
 
 const NAV_ITEMS = [
@@ -31,6 +33,7 @@ const NAV_ITEMS = [
   { id: 'files' as const, label: 'Files', icon: FileText },
   { id: 'symbols' as const, label: 'Symbols', icon: Code2 },
   { id: 'architecture' as const, label: 'Architecture', icon: Layers },
+  { id: 'runtime' as const, label: 'Runtime', icon: Play },
   { id: 'query' as const, label: 'Ask', icon: MessageSquare },
   { id: 'settings' as const, label: 'Settings', icon: SettingsIcon },
 ];
@@ -173,6 +176,7 @@ function App() {
           {activePanel === 'files' && <FileExplorer />}
           {activePanel === 'symbols' && <SymbolBrowser />}
           {activePanel === 'architecture' && <ArchitecturePanel />}
+          {activePanel === 'runtime' && <RuntimePanel />}
           {activePanel === 'query' && <QueryInterface />}
           {activePanel === 'settings' && <Settings />}
         </div>
@@ -193,6 +197,13 @@ function App() {
               <div className="text-center">
                 <Layers className="w-12 h-12 mx-auto mb-2 opacity-50" />
                 <p>Architecture analysis appears in the panel</p>
+              </div>
+            </div>
+          ) : activePanel === 'runtime' ? (
+            <div className="flex items-center justify-center h-full text-gray-500 dark:text-gray-400">
+              <div className="text-center">
+                <Play className="w-12 h-12 mx-auto mb-2 opacity-50" />
+                <p>Runtime execution controls and logs appear in the panel</p>
               </div>
             </div>
           ) : (
