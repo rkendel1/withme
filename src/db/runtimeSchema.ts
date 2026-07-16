@@ -62,7 +62,7 @@ CREATE TABLE IF NOT EXISTS execution_sessions (
   status_message TEXT,
   
   -- Environment
-  environment TEXT NOT NULL DEFAULT 'default',
+  environment TEXT NOT NULL DEFAULT 'development',
   mode TEXT NOT NULL DEFAULT 'local',
   
   -- Container info

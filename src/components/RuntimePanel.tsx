@@ -181,6 +181,12 @@ function LogViewer({ logs }: LogViewerProps) {
 // Runtime Panel Component
 // ============================================================================
 
+// Counter for unique log entry IDs
+let logIdCounter = 0;
+function generateLogId(): number {
+  return ++logIdCounter;
+}
+
 export function RuntimePanel() {
   const {
     selectedRepository,
@@ -248,7 +254,7 @@ export function RuntimePanel() {
 
       // Add log entry for the event
       addExecutionLog({
-        id: Date.now(),
+        id: generateLogId(),
         sessionId: event.sessionId,
         timestamp: event.timestamp,
         level: event.type.includes('error') ? 'error' : 'info',

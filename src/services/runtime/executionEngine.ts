@@ -343,7 +343,10 @@ async function executeLocalContainer(
 
   await delay(2000);
 
-  const containerId = `container-${Date.now().toString(36)}`;
+  // Use crypto.randomUUID for unique container IDs
+  const containerId = typeof crypto !== 'undefined' && crypto.randomUUID
+    ? `container-${crypto.randomUUID().substring(0, 12)}`
+    : `container-${Date.now().toString(36)}`;
 
   emitEvent('container.created', sessionId, { containerId });
 
