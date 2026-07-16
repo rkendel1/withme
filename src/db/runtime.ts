@@ -1,7 +1,8 @@
 /**
  * Runtime Database Operations
  * 
- * CRUD operations for runtime profiles and execution sessions.
+ * CRUD operations for runtime profiles, execution sessions,
+ * runtime containers, execution processes, and container events.
  */
 
 import { query, execute } from './index';
@@ -14,6 +15,17 @@ import type {
   ExecutionStatus,
   RuntimeEnvironment,
   ExecutionMode,
+  RuntimeContainer,
+  CreateRuntimeContainerData,
+  ContainerStatus,
+  ResourceLimits,
+  ExecutionProcess,
+  CreateExecutionProcessData,
+  ProcessStatus,
+  ProcessHealth,
+  ContainerEvent,
+  CreateContainerEventData,
+  ContainerEventType,
 } from '../types/runtime';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -368,4 +380,398 @@ function mapExecutionLog(row: DatabaseRow): ExecutionLog {
     message: row.message as string,
     source: row.source as ExecutionLog['source'],
   };
+}
+
+function mapRuntimeContainer(row: DatabaseRow): RuntimeContainer {
+  return {
+    id: row.id as string,
+    runtimeImage: row.runtime_image as string,
+    runtimeVersion: row.runtime_version as string,
+    status: row.status as ContainerStatus,
+    createdAt: new Date(row.created_at as string),
+    lastUsedAt: new Date(row.last_used_at as string),
+    resourceLimits: (row.resource_limits || { cpuLimit: 1, memoryLimit: 512 }) as ResourceLimits,
+    metadata: (row.metadata || {}) as Record<string, unknown>,
+  };
+}
+
+function mapExecutionProcess(row: DatabaseRow): ExecutionProcess {
+  return {
+    id: row.id as number,
+    sessionId: row.session_id as string,
+    pid: row.pid as number | null,
+    command: row.command as string,
+    status: row.status as ProcessStatus,
+    health: row.health as ProcessHealth,
+    restartCount: row.restart_count as number,
+    createdAt: new Date(row.created_at as string),
+    updatedAt: new Date(row.updated_at as string),
+  };
+}
+
+function mapContainerEvent(row: DatabaseRow): ContainerEvent {
+  return {
+    id: row.id as number,
+    containerId: row.container_id as string,
+    eventType: row.event_type as ContainerEventType,
+    message: row.message as string,
+    timestamp: new Date(row.timestamp as string),
+    metadata: row.metadata as Record<string, unknown> | undefined,
+  };
+}
+
+// ============================================================================
+// Runtime Container Operations
+// ============================================================================
+
+/**
+ * Generate a unique container ID
+ */
+function generateContainerId(runtimeImage: string, version: string): string {
+  const prefix = runtimeImage.split('/').pop()?.split(':')[0] || 'container';
+  const timestamp = Date.now().toString(36);
+  const random = Math.random().toString(36).substring(2, 6);
+  return `${prefix}${version.replace(/\./g, '')}-${timestamp}-${random}`;
+}
+
+/**
+ * Create a new runtime container
+ */
+export async function createRuntimeContainer(
+  data: CreateRuntimeContainerData
+): Promise<RuntimeContainer> {
+  const id = generateContainerId(data.runtimeImage, data.runtimeVersion);
+  const result = await query(
+    `INSERT INTO runtime_containers 
+     (id, runtime_image, runtime_version, status, resource_limits, metadata)
+     VALUES ($1, $2, $3, $4, $5, $6)
+     RETURNING *`,
+    [
+      id,
+      data.runtimeImage,
+      data.runtimeVersion,
+      data.status,
+      JSON.stringify(data.resourceLimits),
+      JSON.stringify(data.metadata),
+    ]
+  );
+  return mapRuntimeContainer(result[0]);
+}
+
+/**
+ * Get runtime container by ID
+ */
+export async function getRuntimeContainer(
+  id: string
+): Promise<RuntimeContainer | null> {
+  const result = await query(
+    'SELECT * FROM runtime_containers WHERE id = $1',
+    [id]
+  );
+  return result.length > 0 ? mapRuntimeContainer(result[0]) : null;
+}
+
+/**
+ * Update runtime container
+ */
+export async function updateRuntimeContainer(
+  id: string,
+  updates: Partial<Omit<RuntimeContainer, 'id' | 'createdAt'>>
+): Promise<RuntimeContainer | null> {
+  const setClauses: string[] = [];
+  const values: unknown[] = [];
+  let paramIndex = 1;
+
+  if (updates.status !== undefined) {
+    setClauses.push(`status = $${paramIndex++}`);
+    values.push(updates.status);
+  }
+  if (updates.lastUsedAt !== undefined) {
+    setClauses.push(`last_used_at = $${paramIndex++}`);
+    values.push(updates.lastUsedAt);
+  }
+  if (updates.resourceLimits !== undefined) {
+    setClauses.push(`resource_limits = $${paramIndex++}`);
+    values.push(JSON.stringify(updates.resourceLimits));
+  }
+  if (updates.metadata !== undefined) {
+    setClauses.push(`metadata = $${paramIndex++}`);
+    values.push(JSON.stringify(updates.metadata));
+  }
+
+  if (setClauses.length === 0) {
+    return getRuntimeContainer(id);
+  }
+
+  values.push(id);
+  const result = await query(
+    `UPDATE runtime_containers SET ${setClauses.join(', ')} WHERE id = $${paramIndex} RETURNING *`,
+    values
+  );
+  return result.length > 0 ? mapRuntimeContainer(result[0]) : null;
+}
+
+/**
+ * Get containers by status
+ */
+export async function getContainersByStatus(
+  status: ContainerStatus
+): Promise<RuntimeContainer[]> {
+  const result = await query(
+    'SELECT * FROM runtime_containers WHERE status = $1 ORDER BY last_used_at DESC',
+    [status]
+  );
+  return result.map(mapRuntimeContainer);
+}
+
+/**
+ * Get available container for a runtime image
+ */
+export async function getAvailableContainer(
+  runtimeImage: string,
+  runtimeVersion: string
+): Promise<RuntimeContainer | null> {
+  const result = await query(
+    `SELECT * FROM runtime_containers 
+     WHERE runtime_image = $1 AND runtime_version = $2 
+       AND status IN ('ready', 'idle')
+     ORDER BY last_used_at DESC
+     LIMIT 1`,
+    [runtimeImage, runtimeVersion]
+  );
+  return result.length > 0 ? mapRuntimeContainer(result[0]) : null;
+}
+
+/**
+ * Get all runtime containers
+ */
+export async function getAllRuntimeContainers(): Promise<RuntimeContainer[]> {
+  const result = await query(
+    'SELECT * FROM runtime_containers ORDER BY created_at DESC'
+  );
+  return result.map(mapRuntimeContainer);
+}
+
+/**
+ * Get idle containers older than specified timestamp
+ */
+export async function getIdleContainers(
+  idleSince: Date
+): Promise<RuntimeContainer[]> {
+  const result = await query(
+    `SELECT * FROM runtime_containers 
+     WHERE status = 'idle' AND last_used_at < $1
+     ORDER BY last_used_at ASC`,
+    [idleSince.toISOString()]
+  );
+  return result.map(mapRuntimeContainer);
+}
+
+/**
+ * Delete runtime container
+ */
+export async function deleteRuntimeContainer(id: string): Promise<void> {
+  await execute('DELETE FROM runtime_containers WHERE id = $1', [id]);
+}
+
+// ============================================================================
+// Execution Process Operations
+// ============================================================================
+
+/**
+ * Create a new execution process
+ */
+export async function createExecutionProcess(
+  data: CreateExecutionProcessData
+): Promise<ExecutionProcess> {
+  const result = await query(
+    `INSERT INTO execution_processes 
+     (session_id, pid, command, status, health, restart_count)
+     VALUES ($1, $2, $3, $4, $5, $6)
+     RETURNING *`,
+    [
+      data.sessionId,
+      data.pid,
+      data.command,
+      data.status,
+      data.health,
+      data.restartCount,
+    ]
+  );
+  return mapExecutionProcess(result[0]);
+}
+
+/**
+ * Get execution process by ID
+ */
+export async function getExecutionProcess(
+  id: number
+): Promise<ExecutionProcess | null> {
+  const result = await query(
+    'SELECT * FROM execution_processes WHERE id = $1',
+    [id]
+  );
+  return result.length > 0 ? mapExecutionProcess(result[0]) : null;
+}
+
+/**
+ * Update execution process
+ */
+export async function updateExecutionProcess(
+  id: number,
+  updates: Partial<Omit<ExecutionProcess, 'id' | 'sessionId' | 'createdAt'>>
+): Promise<ExecutionProcess | null> {
+  const setClauses: string[] = ['updated_at = NOW()'];
+  const values: unknown[] = [];
+  let paramIndex = 1;
+
+  if (updates.pid !== undefined) {
+    setClauses.push(`pid = $${paramIndex++}`);
+    values.push(updates.pid);
+  }
+  if (updates.command !== undefined) {
+    setClauses.push(`command = $${paramIndex++}`);
+    values.push(updates.command);
+  }
+  if (updates.status !== undefined) {
+    setClauses.push(`status = $${paramIndex++}`);
+    values.push(updates.status);
+  }
+  if (updates.health !== undefined) {
+    setClauses.push(`health = $${paramIndex++}`);
+    values.push(updates.health);
+  }
+  if (updates.restartCount !== undefined) {
+    setClauses.push(`restart_count = $${paramIndex++}`);
+    values.push(updates.restartCount);
+  }
+
+  values.push(id);
+  const result = await query(
+    `UPDATE execution_processes SET ${setClauses.join(', ')} WHERE id = $${paramIndex} RETURNING *`,
+    values
+  );
+  return result.length > 0 ? mapExecutionProcess(result[0]) : null;
+}
+
+/**
+ * Get processes for a session
+ */
+export async function getProcessesForSession(
+  sessionId: string
+): Promise<ExecutionProcess[]> {
+  const result = await query(
+    'SELECT * FROM execution_processes WHERE session_id = $1 ORDER BY created_at DESC',
+    [sessionId]
+  );
+  return result.map(mapExecutionProcess);
+}
+
+/**
+ * Get active processes for a session
+ */
+export async function getActiveProcessesForSession(
+  sessionId: string
+): Promise<ExecutionProcess[]> {
+  const result = await query(
+    `SELECT * FROM execution_processes 
+     WHERE session_id = $1 AND status IN ('running', 'restarting')
+     ORDER BY created_at DESC`,
+    [sessionId]
+  );
+  return result.map(mapExecutionProcess);
+}
+
+/**
+ * Delete execution process
+ */
+export async function deleteExecutionProcess(id: number): Promise<void> {
+  await execute('DELETE FROM execution_processes WHERE id = $1', [id]);
+}
+
+// ============================================================================
+// Container Event Operations
+// ============================================================================
+
+/**
+ * Create a new container event
+ */
+export async function createContainerEvent(
+  data: CreateContainerEventData
+): Promise<ContainerEvent> {
+  const result = await query(
+    `INSERT INTO container_events 
+     (container_id, event_type, message, metadata)
+     VALUES ($1, $2, $3, $4)
+     RETURNING *`,
+    [
+      data.containerId,
+      data.eventType,
+      data.message,
+      JSON.stringify(data.metadata || {}),
+    ]
+  );
+  return mapContainerEvent(result[0]);
+}
+
+/**
+ * Get container events
+ */
+export async function getContainerEvents(
+  containerId: string,
+  limit = 100
+): Promise<ContainerEvent[]> {
+  const result = await query(
+    `SELECT * FROM container_events 
+     WHERE container_id = $1 
+     ORDER BY timestamp DESC
+     LIMIT $2`,
+    [containerId, limit]
+  );
+  return result.map(mapContainerEvent);
+}
+
+/**
+ * Get container events since a timestamp
+ */
+export async function getContainerEventsSince(
+  containerId: string,
+  since: Date
+): Promise<ContainerEvent[]> {
+  const result = await query(
+    `SELECT * FROM container_events 
+     WHERE container_id = $1 AND timestamp > $2
+     ORDER BY timestamp ASC`,
+    [containerId, since.toISOString()]
+  );
+  return result.map(mapContainerEvent);
+}
+
+/**
+ * Get recent events by type
+ */
+export async function getEventsByType(
+  eventType: ContainerEventType,
+  limit = 50
+): Promise<ContainerEvent[]> {
+  const result = await query(
+    `SELECT * FROM container_events 
+     WHERE event_type = $1 
+     ORDER BY timestamp DESC
+     LIMIT $2`,
+    [eventType, limit]
+  );
+  return result.map(mapContainerEvent);
+}
+
+/**
+ * Clear old container events
+ */
+export async function clearOldContainerEvents(
+  olderThan: Date
+): Promise<void> {
+  await execute(
+    'DELETE FROM container_events WHERE timestamp < $1',
+    [olderThan.toISOString()]
+  );
 }

@@ -15,6 +15,9 @@ import {
   AlertCircle,
   ChevronDown,
   ChevronRight,
+  Trash2,
+  RotateCcw,
+  Server,
 } from 'lucide-react';
 import { useStore } from '../hooks/useStore';
 import { getRuntimeProfile, upsertRuntimeProfile } from '../db/runtime';
@@ -25,11 +28,15 @@ import {
   startSession,
   stopSession,
   onExecutionEvent,
+  recycleContainerForSession,
+  destroyContainerForSession,
+  getContainerStatusForSession,
 } from '../services/runtime/executionEngine';
 import type {
   RuntimeEnvironment,
   ExecutionStatus,
   ExecutionEvent,
+  ContainerStatus,
 } from '../types/runtime';
 
 // ============================================================================
@@ -187,6 +194,18 @@ function generateLogId(): number {
   return ++logIdCounter;
 }
 
+/**
+ * Format container ID for display
+ * Truncates to 12 characters (standard Docker short ID format) with ellipsis
+ */
+const CONTAINER_ID_DISPLAY_LENGTH = 12;
+function formatContainerId(containerId: string): string {
+  if (containerId.length <= CONTAINER_ID_DISPLAY_LENGTH) {
+    return containerId;
+  }
+  return `${containerId.substring(0, CONTAINER_ID_DISPLAY_LENGTH)}...`;
+}
+
 export function RuntimePanel() {
   const {
     selectedRepository,
@@ -203,11 +222,14 @@ export function RuntimePanel() {
   const [isDetecting, setIsDetecting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [environment, setEnvironment] = useState<RuntimeEnvironment>('development');
+  const [containerStatus, setContainerStatus] = useState<ContainerStatus | null>(null);
+  const [isRecycling, setIsRecycling] = useState(false);
   const [expandedSections, setExpandedSections] = useState({
     profile: true,
     commands: true,
     logs: true,
     config: false,
+    container: false,
   });
 
   // Toggle section expansion
@@ -281,6 +303,16 @@ export function RuntimePanel() {
         return `Pulling image: ${event.data.image}`;
       case 'container.created':
         return `Container created: ${event.data.containerId}`;
+      case 'container.started':
+        return `Container started${event.data.reused ? ' (reused)' : ''}`;
+      case 'container.stopped':
+        return 'Container stopped';
+      case 'container.recycled':
+        return 'Container recycled and ready for reuse';
+      case 'container.destroyed':
+        return 'Container destroyed';
+      case 'container.health':
+        return `Container health: ${event.data.healthy ? 'healthy' : 'unhealthy'}`;
       case 'dependencies.installing':
         return 'Installing dependencies...';
       case 'dependencies.installed':
@@ -291,6 +323,12 @@ export function RuntimePanel() {
         return `Application ready at ${event.data.url}`;
       case 'port.exposed':
         return `Port ${event.data.internal} exposed as ${event.data.external}`;
+      case 'preview.available':
+        return `Preview available at ${event.data.url}`;
+      case 'preview.unavailable':
+        return `Preview unavailable on port ${event.data.port}`;
+      case 'process.health':
+        return `Process health check completed`;
       default:
         return event.type;
     }
@@ -380,6 +418,85 @@ export function RuntimePanel() {
       setIsLoading(false);
     }
   }, [executionSession, setExecutionSession]);
+
+  // Recycle container (clear workspace, reset environment)
+  const handleRecycleContainer = useCallback(async () => {
+    if (!executionSession) return;
+
+    setIsRecycling(true);
+    setError(null);
+
+    try {
+      const container = await recycleContainerForSession(executionSession.id);
+      if (container) {
+        setContainerStatus(container.status);
+        addExecutionLog({
+          id: generateLogId(),
+          sessionId: executionSession.id,
+          timestamp: new Date(),
+          level: 'info',
+          message: `Container recycled and ready for reuse`,
+          source: 'system',
+        });
+      }
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to recycle container';
+      setError(message);
+      console.error('Recycle failed:', err);
+    } finally {
+      setIsRecycling(false);
+    }
+  }, [executionSession, addExecutionLog]);
+
+  // Destroy container completely
+  const handleDestroyContainer = useCallback(async () => {
+    if (!executionSession) return;
+
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      await destroyContainerForSession(executionSession.id);
+      setContainerStatus(null);
+      addExecutionLog({
+        id: generateLogId(),
+        sessionId: executionSession.id,
+        timestamp: new Date(),
+        level: 'info',
+        message: 'Container destroyed',
+        source: 'system',
+      });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to destroy container';
+      setError(message);
+      console.error('Destroy failed:', err);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [executionSession, addExecutionLog]);
+
+  // Refresh container status
+  const refreshContainerStatus = useCallback(async () => {
+    if (!executionSession) return;
+
+    try {
+      const status = await getContainerStatusForSession(executionSession.id);
+      if (status) {
+        setContainerStatus(status.status as ContainerStatus);
+      }
+    } catch (err) {
+      console.error('Failed to get container status:', err);
+    }
+  }, [executionSession]);
+
+  // Update container status when session changes
+  useEffect(() => {
+    if (executionSession?.containerId) {
+      refreshContainerStatus();
+    } else {
+      setContainerStatus(null);
+    }
+  }, [executionSession?.containerId, refreshContainerStatus]);
 
   // No repository selected
   if (!selectedRepository) {
@@ -709,6 +826,60 @@ export function RuntimePanel() {
               </button>
             )}
           </div>
+
+          {/* Container Management Controls */}
+          {executionSession?.containerId && (
+            <div className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-600">
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
+                  <Server className="w-4 h-4" />
+                  <span>Container: {formatContainerId(executionSession.containerId)}</span>
+                  {containerStatus && (
+                    <span className={`px-2 py-0.5 rounded-full text-xs ${
+                      containerStatus === 'running' || containerStatus === 'ready'
+                        ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
+                        : containerStatus === 'idle'
+                        ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
+                        : containerStatus === 'recycling'
+                        ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400'
+                        : 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-400'
+                    }`}>
+                      {containerStatus}
+                    </span>
+                  )}
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={handleRecycleContainer}
+                  disabled={isRecycling || isLoading || isRunning}
+                  className="flex-1 px-3 py-1.5 text-sm bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 rounded-lg hover:bg-blue-200 dark:hover:bg-blue-900/50 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-1"
+                  title="Recycle container - clear workspace and reset for reuse"
+                >
+                  {isRecycling ? (
+                    <>
+                      <Loader2 className="w-3 h-3 animate-spin" />
+                      Recycling...
+                    </>
+                  ) : (
+                    <>
+                      <RotateCcw className="w-3 h-3" />
+                      Recycle
+                    </>
+                  )}
+                </button>
+                <button
+                  onClick={handleDestroyContainer}
+                  disabled={isLoading || isRunning}
+                  className="flex-1 px-3 py-1.5 text-sm bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 rounded-lg hover:bg-red-200 dark:hover:bg-red-900/50 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-1"
+                  title="Destroy container - completely remove"
+                >
+                  <Trash2 className="w-3 h-3" />
+                  Destroy
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>

@@ -1,8 +1,9 @@
 /**
  * Runtime Profiles Database Schema
  * 
- * This schema stores runtime profiles detected from repositories
- * and execution session tracking.
+ * This schema stores runtime profiles detected from repositories,
+ * execution session tracking, container lifecycle management,
+ * and application process monitoring.
  */
 
 export const RUNTIME_SCHEMA_SQL = `
@@ -49,6 +50,21 @@ CREATE TABLE IF NOT EXISTS runtime_profiles (
 );
 
 -- ============================================================================
+-- Runtime Containers Table
+-- Tracks reusable execution containers
+-- ============================================================================
+CREATE TABLE IF NOT EXISTS runtime_containers (
+  id TEXT PRIMARY KEY,
+  runtime_image TEXT NOT NULL,
+  runtime_version TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'created',
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  last_used_at TIMESTAMPTZ DEFAULT NOW(),
+  resource_limits JSONB DEFAULT '{"cpuLimit": 1, "memoryLimit": 512}',
+  metadata JSONB DEFAULT '{}'
+);
+
+-- ============================================================================
 -- Execution Sessions Table
 -- Tracks active and past execution sessions
 -- ============================================================================
@@ -66,16 +82,51 @@ CREATE TABLE IF NOT EXISTS execution_sessions (
   mode TEXT NOT NULL DEFAULT 'local',
   
   -- Container info
-  container_id TEXT,
+  container_id TEXT REFERENCES runtime_containers(id) ON DELETE SET NULL,
   container_image TEXT,
+  
+  -- Execution details
+  command TEXT,
+  working_directory TEXT,
   
   -- Access
   url TEXT,
+  preview_url TEXT,
   ports JSONB DEFAULT '[]',
+  port_mapping JSONB DEFAULT '{}',
   
   -- Timestamps
   started_at TIMESTAMPTZ DEFAULT NOW(),
   stopped_at TIMESTAMPTZ
+);
+
+-- ============================================================================
+-- Execution Processes Table
+-- Tracks application processes within sessions
+-- ============================================================================
+CREATE TABLE IF NOT EXISTS execution_processes (
+  id SERIAL PRIMARY KEY,
+  session_id TEXT NOT NULL REFERENCES execution_sessions(id) ON DELETE CASCADE,
+  pid INTEGER,
+  command TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'created',
+  health TEXT NOT NULL DEFAULT 'unknown',
+  restart_count INTEGER DEFAULT 0,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- ============================================================================
+-- Container Events Table
+-- Runtime history and lifecycle events
+-- ============================================================================
+CREATE TABLE IF NOT EXISTS container_events (
+  id SERIAL PRIMARY KEY,
+  container_id TEXT NOT NULL REFERENCES runtime_containers(id) ON DELETE CASCADE,
+  event_type TEXT NOT NULL,
+  message TEXT NOT NULL,
+  timestamp TIMESTAMPTZ DEFAULT NOW(),
+  metadata JSONB DEFAULT '{}'
 );
 
 -- ============================================================================
@@ -97,9 +148,20 @@ CREATE TABLE IF NOT EXISTS execution_logs (
 CREATE INDEX IF NOT EXISTS idx_runtime_profiles_repository ON runtime_profiles(repository_id);
 CREATE INDEX IF NOT EXISTS idx_runtime_profiles_runtime ON runtime_profiles(runtime);
 
+CREATE INDEX IF NOT EXISTS idx_runtime_containers_status ON runtime_containers(status);
+CREATE INDEX IF NOT EXISTS idx_runtime_containers_runtime_image ON runtime_containers(runtime_image);
+
 CREATE INDEX IF NOT EXISTS idx_execution_sessions_repository ON execution_sessions(repository_id);
 CREATE INDEX IF NOT EXISTS idx_execution_sessions_status ON execution_sessions(status);
 CREATE INDEX IF NOT EXISTS idx_execution_sessions_profile ON execution_sessions(profile_id);
+CREATE INDEX IF NOT EXISTS idx_execution_sessions_container ON execution_sessions(container_id);
+
+CREATE INDEX IF NOT EXISTS idx_execution_processes_session ON execution_processes(session_id);
+CREATE INDEX IF NOT EXISTS idx_execution_processes_status ON execution_processes(status);
+
+CREATE INDEX IF NOT EXISTS idx_container_events_container ON container_events(container_id);
+CREATE INDEX IF NOT EXISTS idx_container_events_type ON container_events(event_type);
+CREATE INDEX IF NOT EXISTS idx_container_events_timestamp ON container_events(timestamp);
 
 CREATE INDEX IF NOT EXISTS idx_execution_logs_session ON execution_logs(session_id);
 CREATE INDEX IF NOT EXISTS idx_execution_logs_timestamp ON execution_logs(timestamp);
