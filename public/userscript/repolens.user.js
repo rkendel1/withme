@@ -23,6 +23,7 @@
   const BUTTON_ID = 'repolens-ingest-button';
   const OVERLAY_ID = 'repolens-overlay';
   const IFRAME_ID = 'repolens-iframe';
+  const MOBILE_BREAKPOINT = 768;
 
   // Paths to exclude from repository detection
   const GITHUB_EXCLUDED_PATHS = [
@@ -76,21 +77,17 @@
     }
 
     /* Mobile adjustments for trigger button */
-    @media (max-width: 768px) {
+    @media (max-width: ${MOBILE_BREAKPOINT}px) {
       #${BUTTON_ID} {
         top: 60px;
         right: 16px;
-        padding: 10px 16px;
+        padding: 12px;
         font-size: 13px;
+        border-radius: 50%;
       }
 
       #${BUTTON_ID} span {
         display: none;
-      }
-
-      #${BUTTON_ID} {
-        padding: 12px;
-        border-radius: 50%;
       }
     }
 
@@ -117,7 +114,7 @@
     }
 
     /* Mobile responsive overlay */
-    @media (max-width: 768px) {
+    @media (max-width: ${MOBILE_BREAKPOINT}px) {
       #${OVERLAY_ID} {
         top: 10px;
         right: 10px;
@@ -333,7 +330,7 @@
       border-radius: 12px;
     }
 
-    @media (max-width: 768px) {
+    @media (max-width: ${MOBILE_BREAKPOINT}px) {
       #${OVERLAY_ID}.minimized {
         width: calc(100vw - 20px);
         left: 10px;
@@ -342,7 +339,7 @@
     }
 
     /* Mobile-specific header adjustments */
-    @media (max-width: 768px) {
+    @media (max-width: ${MOBILE_BREAKPOINT}px) {
       .repolens-header {
         padding: 8px 10px;
       }
@@ -755,8 +752,8 @@
       const dy = clientY - startY;
 
       // Use smaller minimum width for mobile
-      const minWidth = window.innerWidth <= 768 ? 280 : 400;
-      const minHeight = window.innerWidth <= 768 ? 200 : 300;
+      const minWidth = window.innerWidth <= MOBILE_BREAKPOINT ? 280 : 400;
+      const minHeight = window.innerWidth <= MOBILE_BREAKPOINT ? 200 : 300;
 
       const newWidth = Math.max(minWidth, initialWidth + dx);
       const newHeight = Math.max(minHeight, initialHeight + dy);
