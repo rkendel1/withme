@@ -152,6 +152,7 @@ CREATE INDEX IF NOT EXISTS idx_collection_repositories_repository ON collection_
 `;
 
 import { ARCHITECTURE_SCHEMA_SQL, ARCHITECTURE_MIGRATION } from './architectureSchema';
+import { GRAPH_SCHEMA_SQL, GRAPH_MIGRATION } from './graphSchema';
 
 export const MIGRATIONS = [
   {
@@ -160,7 +161,8 @@ export const MIGRATIONS = [
     sql: SCHEMA_SQL,
   },
   ARCHITECTURE_MIGRATION,
+  GRAPH_MIGRATION,
 ];
 
 // Combined schema for initial database setup
-export const COMBINED_SCHEMA_SQL = SCHEMA_SQL + '\n' + ARCHITECTURE_SCHEMA_SQL;
+export const COMBINED_SCHEMA_SQL = SCHEMA_SQL + '\n' + ARCHITECTURE_SCHEMA_SQL + '\n' + GRAPH_SCHEMA_SQL;
