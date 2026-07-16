@@ -438,7 +438,7 @@ export function RuntimePanel() {
                   Runtime Not Detected
                 </h3>
                 <p className="text-sm text-blue-600 dark:text-blue-400 mt-1">
-                  Click &quot;Detect Runtime&quot; to analyze this repository and generate a runtime profile.
+                  Click "Detect Runtime" to analyze this repository and generate a runtime profile.
                 </p>
                 <button
                   onClick={handleDetectRuntime}

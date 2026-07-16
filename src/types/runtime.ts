@@ -62,7 +62,7 @@ export type RuntimeFramework =
   | 'unknown';
 
 /** Runtime execution environment type */
-export type RuntimeEnvironment = 'default' | 'development' | 'production' | 'test';
+export type RuntimeEnvironment = 'development' | 'production' | 'test';
 
 /** Container execution status */
 export type ExecutionStatus =

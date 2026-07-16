@@ -30,8 +30,19 @@ import {
 // ============================================================================
 
 function generateSessionId(): string {
+  // Use crypto.randomUUID for secure, unique session IDs
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+    return `exec-${crypto.randomUUID()}`;
+  }
+  // Fallback for environments without crypto.randomUUID
   const timestamp = Date.now().toString(36);
-  const random = Math.random().toString(36).substring(2, 8);
+  const randomBytes = new Uint8Array(8);
+  if (typeof crypto !== 'undefined' && crypto.getRandomValues) {
+    crypto.getRandomValues(randomBytes);
+  }
+  const random = Array.from(randomBytes)
+    .map(b => b.toString(16).padStart(2, '0'))
+    .join('');
   return `exec-${timestamp}-${random}`;
 }
 

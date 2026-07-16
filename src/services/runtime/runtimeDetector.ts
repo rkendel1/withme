@@ -546,7 +546,8 @@ export function detectPackageManager(
     
     if (pattern.configFile.includes('*')) {
       // Glob pattern - check for any matching file
-      const basePattern = pattern.configFile.replace('*', '');
+      // Replace all asterisks with empty string to get the base pattern
+      const basePattern = pattern.configFile.split('*').join('');
       if ([...context.fileNames].some(name => name.endsWith(basePattern))) {
         return {
           manager: pattern.manager,
@@ -664,7 +665,7 @@ export function detectEnvironmentVariables(context: DetectionContext): Record<st
       const trimmed = line.trim();
       if (!trimmed || trimmed.startsWith('#')) continue;
       
-      const match = trimmed.match(/^([A-Z_][A-Z0-9_]*)=(.*)$/);
+      const match = trimmed.match(/^([A-Za-z_][A-Za-z0-9_]*)=(.*)$/);
       if (match) {
         envVars[match[1]] = match[2] || '';
       }
