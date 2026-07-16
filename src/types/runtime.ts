@@ -294,13 +294,19 @@ export type ExecutionEventType =
   | 'container.created'
   | 'container.started'
   | 'container.stopped'
+  | 'container.recycled'
+  | 'container.destroyed'
+  | 'container.health'
   | 'dependencies.installing'
   | 'dependencies.installed'
   | 'application.starting'
   | 'application.ready'
   | 'application.error'
   | 'port.exposed'
-  | 'log.received';
+  | 'log.received'
+  | 'process.health'
+  | 'preview.available'
+  | 'preview.unavailable';
 
 /** Execution event */
 export interface ExecutionEvent {
@@ -345,4 +351,165 @@ export const DEFAULT_EXECUTION_CONFIG: ExecutionConfig = {
   writablePaths: ['/tmp'],
   maxRuntime: 3600, // 1 hour
   additionalEnv: {},
+};
+
+// ============================================================================
+// Runtime Container Types
+// ============================================================================
+
+/** Container lifecycle status */
+export type ContainerStatus = 
+  | 'created'
+  | 'ready'
+  | 'running'
+  | 'idle'
+  | 'recycling'
+  | 'destroyed'
+  | 'error';
+
+/** Resource limits for a container */
+export interface ResourceLimits {
+  cpuLimit: number;
+  memoryLimit: number;
+  storageLimit?: number;
+}
+
+/** A reusable runtime container */
+export interface RuntimeContainer {
+  id: string;
+  runtimeImage: string;
+  runtimeVersion: string;
+  status: ContainerStatus;
+  createdAt: Date;
+  lastUsedAt: Date;
+  resourceLimits: ResourceLimits;
+  metadata: Record<string, unknown>;
+}
+
+/** Data for creating a new runtime container */
+export type CreateRuntimeContainerData = Omit<RuntimeContainer, 'id' | 'createdAt' | 'lastUsedAt'>;
+
+// ============================================================================
+// Execution Process Types
+// ============================================================================
+
+/** Process health status */
+export type ProcessHealth = 'healthy' | 'unhealthy' | 'starting' | 'unknown';
+
+/** Process status */
+export type ProcessStatus = 
+  | 'created'
+  | 'running'
+  | 'stopped'
+  | 'crashed'
+  | 'restarting';
+
+/** An application process running in a session */
+export interface ExecutionProcess {
+  id: number;
+  sessionId: string;
+  pid: number | null;
+  command: string;
+  status: ProcessStatus;
+  health: ProcessHealth;
+  restartCount: number;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+/** Data for creating a new execution process */
+export type CreateExecutionProcessData = Omit<ExecutionProcess, 'id' | 'createdAt' | 'updatedAt'>;
+
+// ============================================================================
+// Container Event Types
+// ============================================================================
+
+/** Container event types */
+export type ContainerEventType =
+  | 'container.created'
+  | 'container.started'
+  | 'container.stopped'
+  | 'container.recycled'
+  | 'container.destroyed'
+  | 'container.error'
+  | 'container.health_check'
+  | 'repository.mounted'
+  | 'repository.unmounted'
+  | 'process.started'
+  | 'process.stopped'
+  | 'process.crashed'
+  | 'process.restarted';
+
+/** A container lifecycle event */
+export interface ContainerEvent {
+  id: number;
+  containerId: string;
+  eventType: ContainerEventType;
+  message: string;
+  timestamp: Date;
+  metadata?: Record<string, unknown>;
+}
+
+/** Data for creating a container event */
+export type CreateContainerEventData = Omit<ContainerEvent, 'id' | 'timestamp'>;
+
+// ============================================================================
+// Extended Execution Session Types
+// ============================================================================
+
+/** Extended execution session with container and process info */
+export interface ExtendedExecutionSession extends ExecutionSession {
+  command?: string;
+  workingDirectory?: string;
+  previewUrl?: string | null;
+}
+
+// ============================================================================
+// Preview System Types
+// ============================================================================
+
+/** Preview URL info */
+export interface PreviewInfo {
+  url: string;
+  port: number;
+  protocol: 'http' | 'https';
+  isAvailable: boolean;
+  lastCheckedAt: Date;
+}
+
+/** Preview manager configuration */
+export interface PreviewConfig {
+  baseUrl: string;
+  portRangeStart: number;
+  portRangeEnd: number;
+  healthCheckInterval: number;
+}
+
+/** Default preview configuration */
+export const DEFAULT_PREVIEW_CONFIG: PreviewConfig = {
+  baseUrl: 'http://localhost',
+  portRangeStart: 10000,
+  portRangeEnd: 20000,
+  healthCheckInterval: 5000,
+};
+
+// ============================================================================
+// Container Cleanup Policy Types
+// ============================================================================
+
+/** Cleanup policy for containers */
+export type CleanupPolicy = 'stop' | 'recycle' | 'destroy';
+
+/** Cleanup configuration */
+export interface CleanupConfig {
+  policy: CleanupPolicy;
+  idleTimeoutMs: number;
+  maxContainers: number;
+}
+
+/** Default cleanup configuration */
+export const DEFAULT_CLEANUP_CONFIG: CleanupConfig = {
+  policy: 'recycle',
+  idleTimeoutMs: 30 * 60 * 1000, // 30 minutes
+  maxContainers: 5,
 };

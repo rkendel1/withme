@@ -3,6 +3,12 @@
  * 
  * Manages the lifecycle of ephemeral containers for running repositories.
  * This service provides an abstraction layer over Docker/Podman containers.
+ * 
+ * Extended with:
+ * - Persistent runtime containers
+ * - Container reuse
+ * - Preview URL management
+ * - Process health monitoring
  */
 
 import type {
@@ -15,6 +21,8 @@ import type {
   PortMapping,
   ExecutionEvent,
   ExecutionEventType,
+  RuntimeContainer,
+  ExecutionProcess,
 } from '../../types/runtime';
 import { DEFAULT_EXECUTION_CONFIG } from '../../types/runtime';
 import {
@@ -23,7 +31,30 @@ import {
   getExecutionSession,
   addExecutionLog,
   getActiveSessionsForRepository,
+  createExecutionProcess,
+  updateExecutionProcess,
+  getActiveProcessesForSession,
 } from '../../db/runtime';
+import {
+  createOrReuseContainer,
+  stopContainer,
+  recycleContainer,
+  destroyContainer,
+  getContainerStatus,
+  listContainers,
+  onContainerEvent,
+  healthCheckContainer,
+  getContainerImageForRuntime,
+} from './containerManager';
+import {
+  allocatePorts,
+  createPreviewsForSession,
+  removePreviewsForSession,
+  checkAllPreviewsHealth,
+  onPreviewEvent,
+  getPrimaryPreviewUrl,
+  getPreviewsForSession,
+} from './previewManager';
 
 // ============================================================================
 // Session ID Generation
@@ -567,6 +598,340 @@ export async function getSessionStatus(sessionId: string): Promise<{
 }
 
 // ============================================================================
+// Container Lifecycle Management
+// ============================================================================
+
+/**
+ * Create a runtime container for a profile
+ */
+export async function createContainer(
+  profile: RuntimeProfile,
+  options: {
+    resourceLimits?: { cpuLimit?: number; memoryLimit?: number };
+    reuseExisting?: boolean;
+  } = {}
+): Promise<{ container: RuntimeContainer; reused: boolean }> {
+  const version = profile.version || '22';
+  
+  const result = await createOrReuseContainer({
+    runtime: profile.runtime,
+    version,
+    resourceLimits: options.resourceLimits,
+    metadata: {
+      profileId: profile.id,
+      repositoryId: profile.repositoryId,
+      framework: profile.framework,
+    },
+  });
+
+  return result;
+}
+
+/**
+ * Stop a container (preserves for reuse)
+ */
+export async function stopContainerForSession(
+  sessionId: string
+): Promise<RuntimeContainer | null> {
+  const session = await getExecutionSession(sessionId);
+  if (!session?.containerId) {
+    return null;
+  }
+
+  return stopContainer(session.containerId);
+}
+
+/**
+ * Recycle a container (clear workspace, reset environment)
+ */
+export async function recycleContainerForSession(
+  sessionId: string
+): Promise<RuntimeContainer | null> {
+  const session = await getExecutionSession(sessionId);
+  if (!session?.containerId) {
+    return null;
+  }
+
+  return recycleContainer(session.containerId);
+}
+
+/**
+ * Destroy a container completely
+ */
+export async function destroyContainerForSession(
+  sessionId: string
+): Promise<void> {
+  const session = await getExecutionSession(sessionId);
+  if (session?.containerId) {
+    await destroyContainer(session.containerId);
+  }
+}
+
+/**
+ * Get container status for a session
+ */
+export async function getContainerStatusForSession(
+  sessionId: string
+): Promise<{ status: string; container: RuntimeContainer } | null> {
+  const session = await getExecutionSession(sessionId);
+  if (!session?.containerId) {
+    return null;
+  }
+
+  return getContainerStatus(session.containerId);
+}
+
+/**
+ * List all available containers
+ */
+export async function listAllContainers(): Promise<RuntimeContainer[]> {
+  return listContainers();
+}
+
+// ============================================================================
+// Session with Container Management
+// ============================================================================
+
+/**
+ * Create a session with a reusable container
+ */
+export async function createSessionWithContainer(
+  repositoryId: number,
+  profile: RuntimeProfile,
+  options: {
+    environment?: RuntimeEnvironment;
+    mode?: ExecutionMode;
+    command?: string;
+    reuseContainer?: boolean;
+  } = {}
+): Promise<{ session: ExecutionSession; container: RuntimeContainer; reused: boolean }> {
+  const sessionId = generateSessionId();
+  const environment = options.environment || 'development';
+  const mode = options.mode || detectBestExecutionMode();
+
+  // Check for existing active sessions
+  const existingSessions = await getActiveSessionsForRepository(repositoryId);
+  if (existingSessions.length > 0) {
+    // Stop existing sessions first
+    for (const session of existingSessions) {
+      await stopSession(session.id);
+    }
+  }
+
+  // Create or reuse a container
+  const { container, reused } = await createOrReuseContainer({
+    runtime: profile.runtime,
+    version: profile.version || '22',
+    metadata: {
+      profileId: profile.id,
+      repositoryId,
+    },
+  });
+
+  // Allocate ports and create previews
+  const ports = allocatePorts(profile.ports);
+  const previews = createPreviewsForSession(sessionId, ports);
+  const previewUrl = previews.length > 0 ? previews[0].url : null;
+
+  // Create the session with container reference
+  const session = await createExecutionSession({
+    id: sessionId,
+    repositoryId,
+    profileId: profile.id,
+    status: 'idle',
+    statusMessage: null,
+    environment,
+    mode,
+    containerId: container.id,
+    containerImage: getContainerImageForRuntime(profile.runtime, profile.version || '22'),
+    url: previewUrl,
+    ports,
+  });
+
+  emitEvent('session.created', sessionId, { 
+    repositoryId, 
+    profileId: profile.id,
+    containerId: container.id,
+    reusedContainer: reused,
+  });
+
+  await addExecutionLog({
+    sessionId,
+    level: 'info',
+    message: `Execution session created with ${reused ? 'reused' : 'new'} container ${container.id}`,
+    source: 'system',
+  });
+
+  return { session, container, reused };
+}
+
+// ============================================================================
+// Process Management
+// ============================================================================
+
+/**
+ * Create and track an execution process
+ */
+export async function createProcess(
+  sessionId: string,
+  command: string
+): Promise<ExecutionProcess> {
+  const process = await createExecutionProcess({
+    sessionId,
+    pid: null,
+    command,
+    status: 'created',
+    health: 'unknown',
+    restartCount: 0,
+  });
+
+  await addExecutionLog({
+    sessionId,
+    level: 'info',
+    message: `Process created: ${command}`,
+    source: 'system',
+  });
+
+  return process;
+}
+
+/**
+ * Update process status
+ */
+export async function updateProcessStatus(
+  processId: number,
+  status: 'running' | 'stopped' | 'crashed' | 'restarting',
+  health?: 'healthy' | 'unhealthy' | 'starting' | 'unknown'
+): Promise<ExecutionProcess | null> {
+  return updateExecutionProcess(processId, { 
+    status, 
+    ...(health && { health }),
+  });
+}
+
+/**
+ * Get active processes for a session
+ */
+export async function getActiveProcesses(
+  sessionId: string
+): Promise<ExecutionProcess[]> {
+  return getActiveProcessesForSession(sessionId);
+}
+
+// ============================================================================
+// Health Monitoring
+// ============================================================================
+
+/**
+ * Check health of a session (container + previews)
+ */
+export async function checkSessionHealth(sessionId: string): Promise<{
+  containerHealthy: boolean;
+  previewsHealthy: boolean;
+  details: Record<string, unknown>;
+}> {
+  const session = await getExecutionSession(sessionId);
+  if (!session) {
+    return {
+      containerHealthy: false,
+      previewsHealthy: false,
+      details: { error: 'Session not found' },
+    };
+  }
+
+  // Check container health
+  let containerHealthy = false;
+  if (session.containerId) {
+    const containerHealth = await healthCheckContainer(session.containerId);
+    containerHealthy = containerHealth.healthy;
+  }
+
+  // Check preview health
+  const previewHealth = await checkAllPreviewsHealth(sessionId);
+  const previewsHealthy = Array.from(previewHealth.values()).every(h => h);
+
+  emitEvent('process.health', sessionId, {
+    containerHealthy,
+    previewsHealthy,
+  });
+
+  return {
+    containerHealthy,
+    previewsHealthy,
+    details: {
+      containerId: session.containerId,
+      previewHealth: Object.fromEntries(previewHealth),
+    },
+  };
+}
+
+// ============================================================================
+// Event Subscription (Combined)
+// ============================================================================
+
+/**
+ * Subscribe to all runtime events (execution, container, preview)
+ */
+export function onAllRuntimeEvents(handler: (event: ExecutionEvent) => void): () => void {
+  const unsubExec = onExecutionEvent(handler);
+  const unsubContainer = onContainerEvent(handler);
+  const unsubPreview = onPreviewEvent(handler);
+
+  return () => {
+    unsubExec();
+    unsubContainer();
+    unsubPreview();
+  };
+}
+
+// ============================================================================
+// Cleanup Operations
+// ============================================================================
+
+/**
+ * Clean up a session and optionally its container
+ */
+export async function cleanupSession(
+  sessionId: string,
+  options: {
+    recycleContainer?: boolean;
+    destroyContainer?: boolean;
+  } = {}
+): Promise<void> {
+  const session = await getExecutionSession(sessionId);
+  if (!session) {
+    return;
+  }
+
+  // Stop the session if running
+  if (session.status !== 'stopped' && session.status !== 'error') {
+    await stopSession(sessionId);
+  }
+
+  // Remove previews
+  removePreviewsForSession(sessionId);
+
+  // Handle container cleanup
+  if (session.containerId) {
+    if (options.destroyContainer) {
+      await destroyContainer(session.containerId);
+    } else if (options.recycleContainer) {
+      await recycleContainer(session.containerId);
+    } else {
+      // Default: stop container (preserve for reuse)
+      await stopContainer(session.containerId);
+    }
+  }
+
+  await addExecutionLog({
+    sessionId,
+    level: 'info',
+    message: 'Session cleaned up',
+    source: 'system',
+  });
+}
+
+// ============================================================================
 // Utility Functions
 // ============================================================================
 
@@ -575,7 +940,13 @@ function delay(ms: number): Promise<void> {
 }
 
 // ============================================================================
-// Export Default Config
+// Export Default Config and Re-exports
 // ============================================================================
 
 export { DEFAULT_EXECUTION_CONFIG } from '../../types/runtime';
+
+// Re-export container management functions for external use
+export { listContainers } from './containerManager';
+
+// Export preview management functions
+export { getPrimaryPreviewUrl, getPreviewsForSession };
