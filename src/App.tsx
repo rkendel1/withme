@@ -68,6 +68,31 @@ function App() {
     }
   }, [isOverlay, isSidebarOpen, toggleSidebar]);
 
+  // Listen for messages from the overlay parent frame
+  useEffect(() => {
+    if (!isOverlay) return;
+
+    const handleMessage = (event: MessageEvent) => {
+      const { type, panel, query } = event.data || {};
+      
+      if (type === 'REPOLENS_NAVIGATE' && panel) {
+        // Validate panel name and navigate
+        const validPanels = ['repositories', 'collections', 'files', 'symbols', 'architecture', 'runtime', 'query', 'settings'];
+        if (validPanels.includes(panel)) {
+          setActivePanel(panel as typeof activePanel);
+        }
+      } else if (type === 'REPOLENS_QUERY' && query) {
+        // Navigate to query panel and trigger a query
+        setActivePanel('query');
+        // Dispatch a custom event that QueryInterface can listen to
+        window.dispatchEvent(new CustomEvent('repolens-query', { detail: { query } }));
+      }
+    };
+
+    window.addEventListener('message', handleMessage);
+    return () => window.removeEventListener('message', handleMessage);
+  }, [isOverlay, setActivePanel]);
+
   useEffect(() => {
     async function init() {
       try {
