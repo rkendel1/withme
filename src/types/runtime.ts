@@ -500,6 +500,10 @@ export const DEFAULT_PREVIEW_CONFIG: PreviewConfig = {
 /** Cleanup policy for containers */
 export type CleanupPolicy = 'stop' | 'recycle' | 'destroy';
 
+/** Time constants for configuration */
+const MINUTES_TO_MS = 60 * 1000;
+const IDLE_TIMEOUT_MINUTES = 30;
+
 /** Cleanup configuration */
 export interface CleanupConfig {
   policy: CleanupPolicy;
@@ -510,6 +514,6 @@ export interface CleanupConfig {
 /** Default cleanup configuration */
 export const DEFAULT_CLEANUP_CONFIG: CleanupConfig = {
   policy: 'recycle',
-  idleTimeoutMs: 30 * 60 * 1000, // 30 minutes
+  idleTimeoutMs: IDLE_TIMEOUT_MINUTES * MINUTES_TO_MS, // 30 minutes
   maxContainers: 5,
 };

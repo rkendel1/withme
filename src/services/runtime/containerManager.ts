@@ -318,9 +318,11 @@ export async function recycleContainer(
   // Simulate cleanup process
   await delay(500);
 
-  // Safely get recycle count from metadata
+  // Safely get recycle count from metadata (must be non-negative integer)
   const currentRecycleCount = 
-    typeof container.metadata.recycleCount === 'number' 
+    typeof container.metadata.recycleCount === 'number' && 
+    container.metadata.recycleCount >= 0 &&
+    Number.isInteger(container.metadata.recycleCount)
       ? container.metadata.recycleCount 
       : 0;
 

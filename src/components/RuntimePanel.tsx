@@ -195,13 +195,15 @@ function generateLogId(): number {
 }
 
 /**
- * Format container ID for display (truncate to first 12 characters)
+ * Format container ID for display
+ * Truncates to 12 characters (standard Docker short ID format) with ellipsis
  */
-function formatContainerId(containerId: string, maxLength = 12): string {
-  if (containerId.length <= maxLength) {
+const CONTAINER_ID_DISPLAY_LENGTH = 12;
+function formatContainerId(containerId: string): string {
+  if (containerId.length <= CONTAINER_ID_DISPLAY_LENGTH) {
     return containerId;
   }
-  return `${containerId.substring(0, maxLength)}...`;
+  return `${containerId.substring(0, CONTAINER_ID_DISPLAY_LENGTH)}...`;
 }
 
 export function RuntimePanel() {

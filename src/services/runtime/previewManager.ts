@@ -306,14 +306,15 @@ export function generatePreviewUrl(
 }
 
 /**
- * Parse a preview URL to extract port
+ * Parse a preview URL to extract host and port
+ * Returns the host without protocol (e.g., "localhost")
  */
 export function parsePreviewUrl(url: string): { host: string; port: number } | null {
   try {
-    const match = url.match(/^(https?:\/\/[^:]+):(\d+)/);
+    const match = url.match(/^https?:\/\/([^:]+):(\d+)/);
     if (match) {
       return {
-        host: match[1],
+        host: match[1], // Just the hostname without protocol
         port: parseInt(match[2], 10),
       };
     }
