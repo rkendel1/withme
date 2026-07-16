@@ -431,20 +431,59 @@ async function executeLocalContainer(
 
 /**
  * Get the appropriate container image for a runtime profile
+ * Uses Docker-style naming convention: repolens/runtime:version
  */
 function getContainerImage(profile: RuntimeProfile): string {
+  const version = profile.version || getDefaultVersion(profile.runtime);
+  const formattedVersion = formatVersion(profile.runtime, version);
+  
   const imageMap: Record<string, string> = {
-    node: `repolens/node${profile.version || '22'}`,
-    python: `repolens/python${profile.version || '312'}`,
-    rust: 'repolens/rust',
-    go: 'repolens/go',
-    java: 'repolens/java',
-    dotnet: 'repolens/dotnet',
-    ruby: 'repolens/ruby',
-    php: 'repolens/php',
+    node: `repolens/node:${formattedVersion}`,
+    python: `repolens/python:${formattedVersion}`,
+    rust: `repolens/rust:${formattedVersion}`,
+    go: `repolens/go:${formattedVersion}`,
+    java: `repolens/java:${formattedVersion}`,
+    dotnet: `repolens/dotnet:${formattedVersion}`,
+    ruby: `repolens/ruby:${formattedVersion}`,
+    php: `repolens/php:${formattedVersion}`,
   };
 
-  return imageMap[profile.runtime] || 'repolens/node22';
+  return imageMap[profile.runtime] || 'repolens/node:22';
+}
+
+/**
+ * Get default version for a runtime
+ */
+function getDefaultVersion(runtime: string): string {
+  const defaults: Record<string, string> = {
+    node: '22',
+    python: '3.12',
+    rust: 'latest',
+    go: '1.22',
+    java: '21',
+    dotnet: '8.0',
+    ruby: '3.3',
+    php: '8.3',
+  };
+  return defaults[runtime] || 'latest';
+}
+
+/**
+ * Format version string for Docker image tag
+ * Ensures consistent version formatting (e.g., '312' becomes '3.12' for Python)
+ */
+function formatVersion(runtime: string, version: string): string {
+  // If already contains a dot, return as-is
+  if (version.includes('.')) {
+    return version;
+  }
+  
+  // Handle Python versions like '312' -> '3.12'
+  if (runtime === 'python' && version.length === 3) {
+    return `${version[0]}.${version.slice(1)}`;
+  }
+  
+  return version;
 }
 
 /**
