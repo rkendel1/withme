@@ -312,6 +312,295 @@
       opacity: 1;
     }
 
+    /* Quick Action Toolbar */
+    .repolens-toolbar {
+      display: flex;
+      align-items: center;
+      gap: 2px;
+      padding: 8px 12px;
+      background: #111827;
+      border-bottom: 1px solid #374151;
+      flex-shrink: 0;
+    }
+
+    .repolens-toolbar-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      padding: 6px 10px;
+      background: transparent;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      color: #9ca3af;
+      font-size: 12px;
+      font-family: inherit;
+      transition: all 0.15s ease;
+      white-space: nowrap;
+    }
+
+    .repolens-toolbar-btn:hover {
+      background: #374151;
+      color: white;
+    }
+
+    .repolens-toolbar-btn.active {
+      background: #3b82f6;
+      color: white;
+    }
+
+    .repolens-toolbar-btn svg {
+      width: 14px;
+      height: 14px;
+    }
+
+    .repolens-toolbar-divider {
+      width: 1px;
+      height: 20px;
+      background: #374151;
+      margin: 0 6px;
+    }
+
+    /* Quick Search Bar */
+    .repolens-quick-search {
+      display: flex;
+      align-items: center;
+      flex: 1;
+      max-width: 400px;
+      margin: 0 8px;
+    }
+
+    .repolens-search-input-wrapper {
+      display: flex;
+      align-items: center;
+      flex: 1;
+      background: #1f2937;
+      border: 1px solid #374151;
+      border-radius: 8px;
+      padding: 0 10px;
+      transition: all 0.15s ease;
+    }
+
+    .repolens-search-input-wrapper:focus-within {
+      border-color: #3b82f6;
+      box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+    }
+
+    .repolens-search-input-wrapper svg {
+      width: 14px;
+      height: 14px;
+      color: #6b7280;
+      flex-shrink: 0;
+    }
+
+    .repolens-search-input {
+      flex: 1;
+      padding: 8px;
+      background: transparent;
+      border: none;
+      color: white;
+      font-size: 13px;
+      font-family: inherit;
+      outline: none;
+    }
+
+    .repolens-search-input::placeholder {
+      color: #6b7280;
+    }
+
+    .repolens-search-submit {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 4px;
+      background: transparent;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      color: #6b7280;
+      transition: all 0.15s ease;
+    }
+
+    .repolens-search-submit:hover {
+      color: #3b82f6;
+      background: rgba(59, 130, 246, 0.1);
+    }
+
+    .repolens-search-submit svg {
+      width: 14px;
+      height: 14px;
+    }
+
+    /* Keyboard shortcut hints */
+    .repolens-shortcut {
+      display: inline-flex;
+      align-items: center;
+      gap: 2px;
+      padding: 2px 5px;
+      background: #374151;
+      border-radius: 4px;
+      font-size: 10px;
+      color: #9ca3af;
+      font-family: ui-monospace, monospace;
+    }
+
+    /* Command Palette */
+    .repolens-command-palette {
+      position: absolute;
+      top: 60px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 90%;
+      max-width: 500px;
+      background: #1f2937;
+      border: 1px solid #374151;
+      border-radius: 12px;
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+      z-index: 100;
+      display: none;
+      overflow: hidden;
+    }
+
+    .repolens-command-palette.open {
+      display: block;
+    }
+
+    .repolens-command-input-wrapper {
+      display: flex;
+      align-items: center;
+      padding: 12px 16px;
+      border-bottom: 1px solid #374151;
+      gap: 10px;
+    }
+
+    .repolens-command-input-wrapper svg {
+      width: 18px;
+      height: 18px;
+      color: #6b7280;
+    }
+
+    .repolens-command-input {
+      flex: 1;
+      padding: 4px 0;
+      background: transparent;
+      border: none;
+      color: white;
+      font-size: 15px;
+      font-family: inherit;
+      outline: none;
+    }
+
+    .repolens-command-input::placeholder {
+      color: #6b7280;
+    }
+
+    .repolens-command-list {
+      max-height: 300px;
+      overflow-y: auto;
+      padding: 8px;
+    }
+
+    .repolens-command-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 10px 12px;
+      border-radius: 8px;
+      cursor: pointer;
+      color: #d1d5db;
+      transition: all 0.1s ease;
+    }
+
+    .repolens-command-item:hover,
+    .repolens-command-item.selected {
+      background: #374151;
+      color: white;
+    }
+
+    .repolens-command-item svg {
+      width: 16px;
+      height: 16px;
+      color: #9ca3af;
+    }
+
+    .repolens-command-item:hover svg,
+    .repolens-command-item.selected svg {
+      color: #3b82f6;
+    }
+
+    .repolens-command-item-text {
+      flex: 1;
+    }
+
+    .repolens-command-item-title {
+      font-size: 13px;
+      font-weight: 500;
+    }
+
+    .repolens-command-item-desc {
+      font-size: 11px;
+      color: #6b7280;
+      margin-top: 2px;
+    }
+
+    .repolens-command-group-title {
+      padding: 8px 12px 4px;
+      font-size: 11px;
+      font-weight: 600;
+      color: #6b7280;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    /* Status Bar */
+    .repolens-status-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 6px 12px;
+      background: #0f172a;
+      border-top: 1px solid #374151;
+      font-size: 11px;
+      color: #6b7280;
+      flex-shrink: 0;
+    }
+
+    .repolens-status-left,
+    .repolens-status-right {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .repolens-status-item {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .repolens-status-item svg {
+      width: 12px;
+      height: 12px;
+    }
+
+    .repolens-status-indicator {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: #22c55e;
+    }
+
+    .repolens-status-indicator.loading {
+      background: #f59e0b;
+      animation: pulse 1.5s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+
     /* Minimized state */
     #${OVERLAY_ID}.minimized {
       width: 280px;
@@ -321,7 +610,10 @@
     }
 
     #${OVERLAY_ID}.minimized .repolens-iframe-container,
-    #${OVERLAY_ID}.minimized .repolens-resize {
+    #${OVERLAY_ID}.minimized .repolens-resize,
+    #${OVERLAY_ID}.minimized .repolens-toolbar,
+    #${OVERLAY_ID}.minimized .repolens-status-bar,
+    #${OVERLAY_ID}.minimized .repolens-command-palette {
       display: none;
     }
 
@@ -353,6 +645,22 @@
         overflow: hidden;
         text-overflow: ellipsis;
       }
+
+      .repolens-toolbar {
+        flex-wrap: wrap;
+        padding: 6px 8px;
+      }
+
+      .repolens-toolbar-btn span {
+        display: none;
+      }
+
+      .repolens-quick-search {
+        order: 10;
+        flex-basis: 100%;
+        max-width: none;
+        margin: 8px 0 0;
+      }
     }
   `;
 
@@ -365,6 +673,18 @@
     loader: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="2" x2="12" y2="6"/><line x1="12" y1="18" x2="12" y2="22"/><line x1="4.93" y1="4.93" x2="7.76" y2="7.76"/><line x1="16.24" y1="16.24" x2="19.07" y2="19.07"/><line x1="2" y1="12" x2="6" y2="12"/><line x1="18" y1="12" x2="22" y2="12"/><line x1="4.93" y1="19.07" x2="7.76" y2="16.24"/><line x1="16.24" y1="7.76" x2="19.07" y2="4.93"/></svg>',
     git: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 3v6m0 6v6"/></svg>',
     externalLink: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>',
+    // New icons for overlay controls
+    files: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/></svg>',
+    code: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>',
+    message: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>',
+    layers: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>',
+    settings: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>',
+    refresh: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>',
+    send: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>',
+    command: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 3a3 3 0 0 0-3 3v12a3 3 0 0 0 3 3 3 3 0 0 0 3-3 3 3 0 0 0-3-3H6a3 3 0 0 0-3 3 3 3 0 0 0 3 3 3 3 0 0 0 3-3V6a3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3h12a3 3 0 0 0 3-3 3 3 0 0 0-3-3z"/></svg>',
+    folder: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>',
+    play: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>',
+    keyboard: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2" ry="2"/><path d="M6 8h.001"/><path d="M10 8h.001"/><path d="M14 8h.001"/><path d="M18 8h.001"/><path d="M8 12h.001"/><path d="M12 12h.001"/><path d="M16 12h.001"/><path d="M7 16h10"/></svg>',
   };
 
   /**
@@ -603,12 +923,141 @@
           </button>
         </div>
       </div>
+
+      <!-- Quick Action Toolbar -->
+      <div class="repolens-toolbar" id="repolens-toolbar">
+        <button class="repolens-toolbar-btn active" id="repolens-nav-files" title="Browse Files (F)">
+          ${icons.files}
+          <span>Files</span>
+        </button>
+        <button class="repolens-toolbar-btn" id="repolens-nav-symbols" title="Symbols (S)">
+          ${icons.code}
+          <span>Symbols</span>
+        </button>
+        <button class="repolens-toolbar-btn" id="repolens-nav-arch" title="Architecture (A)">
+          ${icons.layers}
+          <span>Arch</span>
+        </button>
+        <button class="repolens-toolbar-btn" id="repolens-nav-query" title="Ask AI (Q)">
+          ${icons.message}
+          <span>Ask</span>
+        </button>
+        
+        <div class="repolens-toolbar-divider"></div>
+        
+        <button class="repolens-toolbar-btn" id="repolens-refresh" title="Refresh (R)">
+          ${icons.refresh}
+        </button>
+        <button class="repolens-toolbar-btn" id="repolens-settings" title="Settings">
+          ${icons.settings}
+        </button>
+        
+        <div class="repolens-toolbar-divider"></div>
+        
+        <!-- Quick Search Bar -->
+        <div class="repolens-quick-search">
+          <div class="repolens-search-input-wrapper">
+            ${icons.search}
+            <input type="text" class="repolens-search-input" id="repolens-search-input" 
+                   placeholder="Ask about this repo... (⌘K)" />
+            <button class="repolens-search-submit" id="repolens-search-submit" title="Send">
+              ${icons.send}
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Command Palette -->
+      <div class="repolens-command-palette" id="repolens-command-palette">
+        <div class="repolens-command-input-wrapper">
+          ${icons.command}
+          <input type="text" class="repolens-command-input" id="repolens-command-input" 
+                 placeholder="Type a command or search..." />
+        </div>
+        <div class="repolens-command-list" id="repolens-command-list">
+          <div class="repolens-command-group-title">Navigation</div>
+          <div class="repolens-command-item" data-action="nav-files">
+            ${icons.files}
+            <div class="repolens-command-item-text">
+              <div class="repolens-command-item-title">Browse Files</div>
+              <div class="repolens-command-item-desc">Explore repository file structure</div>
+            </div>
+            <span class="repolens-shortcut">F</span>
+          </div>
+          <div class="repolens-command-item" data-action="nav-symbols">
+            ${icons.code}
+            <div class="repolens-command-item-text">
+              <div class="repolens-command-item-title">View Symbols</div>
+              <div class="repolens-command-item-desc">Functions, classes, variables</div>
+            </div>
+            <span class="repolens-shortcut">S</span>
+          </div>
+          <div class="repolens-command-item" data-action="nav-arch">
+            ${icons.layers}
+            <div class="repolens-command-item-text">
+              <div class="repolens-command-item-title">Architecture</div>
+              <div class="repolens-command-item-desc">View system architecture</div>
+            </div>
+            <span class="repolens-shortcut">A</span>
+          </div>
+          <div class="repolens-command-item" data-action="nav-query">
+            ${icons.message}
+            <div class="repolens-command-item-text">
+              <div class="repolens-command-item-title">Ask AI</div>
+              <div class="repolens-command-item-desc">Query the repository with AI</div>
+            </div>
+            <span class="repolens-shortcut">Q</span>
+          </div>
+          
+          <div class="repolens-command-group-title">Actions</div>
+          <div class="repolens-command-item" data-action="refresh">
+            ${icons.refresh}
+            <div class="repolens-command-item-text">
+              <div class="repolens-command-item-title">Refresh</div>
+              <div class="repolens-command-item-desc">Re-ingest current repository</div>
+            </div>
+            <span class="repolens-shortcut">R</span>
+          </div>
+          <div class="repolens-command-item" data-action="settings">
+            ${icons.settings}
+            <div class="repolens-command-item-text">
+              <div class="repolens-command-item-title">Settings</div>
+              <div class="repolens-command-item-desc">Configure LLM and preferences</div>
+            </div>
+          </div>
+          <div class="repolens-command-item" data-action="external">
+            ${icons.externalLink}
+            <div class="repolens-command-item-text">
+              <div class="repolens-command-item-title">Open in New Tab</div>
+              <div class="repolens-command-item-desc">Launch RepoLens in full window</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <div class="repolens-iframe-container" id="repolens-iframe-container">
         <div class="repolens-loading" id="repolens-loading">
           ${icons.loader}
           <span class="repolens-loading-text">Loading RepoLens...</span>
         </div>
       </div>
+
+      <!-- Status Bar -->
+      <div class="repolens-status-bar" id="repolens-status-bar">
+        <div class="repolens-status-left">
+          <div class="repolens-status-item">
+            <span class="repolens-status-indicator" id="repolens-status-indicator"></span>
+            <span id="repolens-status-text">Ready</span>
+          </div>
+        </div>
+        <div class="repolens-status-right">
+          <div class="repolens-status-item">
+            ${icons.keyboard}
+            <span>⌘K for commands</span>
+          </div>
+        </div>
+      </div>
+
       <div class="repolens-resize" id="repolens-resize"></div>
     `;
 
@@ -619,11 +1068,318 @@
     document.getElementById('repolens-minimize').addEventListener('click', toggleMinimize);
     document.getElementById('repolens-external').addEventListener('click', openInNewTab);
 
+    // Toolbar navigation buttons
+    setupToolbarNavigation();
+    
+    // Command palette
+    setupCommandPalette();
+    
+    // Quick search
+    setupQuickSearch();
+    
+    // Keyboard shortcuts
+    setupKeyboardShortcuts();
+
     // Setup dragging
     setupOverlayDrag(overlay);
 
     // Setup resizing
     setupOverlayResize(overlay);
+  }
+
+  /**
+   * Setup toolbar navigation buttons
+   */
+  function setupToolbarNavigation() {
+    const navButtons = {
+      'repolens-nav-files': 'files',
+      'repolens-nav-symbols': 'symbols',
+      'repolens-nav-arch': 'architecture',
+      'repolens-nav-query': 'query',
+      'repolens-settings': 'settings',
+    };
+
+    Object.entries(navButtons).forEach(([btnId, panel]) => {
+      const btn = document.getElementById(btnId);
+      if (btn) {
+        btn.addEventListener('click', () => {
+          navigateToPanel(panel);
+          updateActiveNavButton(btnId);
+        });
+      }
+    });
+
+    const refreshBtn = document.getElementById('repolens-refresh');
+    if (refreshBtn) {
+      refreshBtn.addEventListener('click', () => {
+        refreshRepository();
+      });
+    }
+  }
+
+  /**
+   * Update active nav button styling
+   */
+  function updateActiveNavButton(activeBtnId) {
+    const navBtns = ['repolens-nav-files', 'repolens-nav-symbols', 'repolens-nav-arch', 'repolens-nav-query'];
+    navBtns.forEach(id => {
+      const btn = document.getElementById(id);
+      if (btn) {
+        btn.classList.toggle('active', id === activeBtnId);
+      }
+    });
+  }
+
+  /**
+   * Navigate to a specific panel in the app
+   */
+  function navigateToPanel(panel) {
+    const iframe = document.getElementById(IFRAME_ID);
+    if (iframe && iframe.contentWindow) {
+      iframe.contentWindow.postMessage({ type: 'REPOLENS_NAVIGATE', panel }, '*');
+    }
+    updateStatus(`Navigated to ${panel}`);
+  }
+
+  /**
+   * Refresh/re-ingest the repository
+   */
+  function refreshRepository() {
+    const iframe = document.getElementById(IFRAME_ID);
+    if (iframe) {
+      const repoInfo = parseRepoInfo();
+      if (repoInfo) {
+        updateStatus('Refreshing repository...', true);
+        iframe.src = `${REPOLENS_APP_URL}?ingest=${encodeURIComponent(repoInfo.url)}&refresh=true`;
+      }
+    }
+  }
+
+  /**
+   * Update status bar
+   */
+  function updateStatus(message, loading = false) {
+    const statusText = document.getElementById('repolens-status-text');
+    const indicator = document.getElementById('repolens-status-indicator');
+    
+    if (statusText) {
+      statusText.textContent = message;
+    }
+    if (indicator) {
+      indicator.classList.toggle('loading', loading);
+    }
+    
+    // Reset to "Ready" after 3 seconds if not loading
+    if (!loading) {
+      setTimeout(() => {
+        if (statusText && statusText.textContent === message) {
+          statusText.textContent = 'Ready';
+        }
+      }, 3000);
+    }
+  }
+
+  /**
+   * Setup command palette
+   */
+  function setupCommandPalette() {
+    const palette = document.getElementById('repolens-command-palette');
+    const input = document.getElementById('repolens-command-input');
+    const commandList = document.getElementById('repolens-command-list');
+    
+    if (!palette || !input) return;
+
+    let selectedIndex = 0;
+    const commands = commandList.querySelectorAll('.repolens-command-item');
+
+    // Filter commands as user types
+    input.addEventListener('input', () => {
+      const query = input.value.toLowerCase();
+      commands.forEach(cmd => {
+        const title = cmd.querySelector('.repolens-command-item-title')?.textContent.toLowerCase() || '';
+        const desc = cmd.querySelector('.repolens-command-item-desc')?.textContent.toLowerCase() || '';
+        const matches = title.includes(query) || desc.includes(query);
+        cmd.style.display = matches ? 'flex' : 'none';
+      });
+      selectedIndex = 0;
+      updateCommandSelection();
+    });
+
+    // Keyboard navigation
+    input.addEventListener('keydown', (e) => {
+      const visibleCommands = [...commands].filter(c => c.style.display !== 'none');
+      
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        selectedIndex = Math.min(selectedIndex + 1, visibleCommands.length - 1);
+        updateCommandSelection();
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        selectedIndex = Math.max(selectedIndex - 1, 0);
+        updateCommandSelection();
+      } else if (e.key === 'Enter') {
+        e.preventDefault();
+        if (visibleCommands[selectedIndex]) {
+          executeCommand(visibleCommands[selectedIndex].dataset.action);
+        }
+      } else if (e.key === 'Escape') {
+        toggleCommandPalette(false);
+      }
+    });
+
+    function updateCommandSelection() {
+      const visibleCommands = [...commands].filter(c => c.style.display !== 'none');
+      commands.forEach(cmd => cmd.classList.remove('selected'));
+      if (visibleCommands[selectedIndex]) {
+        visibleCommands[selectedIndex].classList.add('selected');
+      }
+    }
+
+    // Click to execute command
+    commands.forEach(cmd => {
+      cmd.addEventListener('click', () => {
+        executeCommand(cmd.dataset.action);
+      });
+    });
+  }
+
+  /**
+   * Toggle command palette visibility
+   */
+  function toggleCommandPalette(show) {
+    const palette = document.getElementById('repolens-command-palette');
+    const input = document.getElementById('repolens-command-input');
+    
+    if (!palette) return;
+    
+    if (show === undefined) {
+      show = !palette.classList.contains('open');
+    }
+    
+    palette.classList.toggle('open', show);
+    
+    if (show && input) {
+      input.value = '';
+      input.focus();
+      // Reset visibility of all commands
+      const commands = document.querySelectorAll('.repolens-command-item');
+      commands.forEach(cmd => cmd.style.display = 'flex');
+    }
+  }
+
+  /**
+   * Execute a command from the palette
+   */
+  function executeCommand(action) {
+    toggleCommandPalette(false);
+    
+    const actionMap = {
+      'nav-files': () => { navigateToPanel('files'); updateActiveNavButton('repolens-nav-files'); },
+      'nav-symbols': () => { navigateToPanel('symbols'); updateActiveNavButton('repolens-nav-symbols'); },
+      'nav-arch': () => { navigateToPanel('architecture'); updateActiveNavButton('repolens-nav-arch'); },
+      'nav-query': () => { navigateToPanel('query'); updateActiveNavButton('repolens-nav-query'); },
+      'refresh': refreshRepository,
+      'settings': () => navigateToPanel('settings'),
+      'external': openInNewTab,
+    };
+    
+    if (actionMap[action]) {
+      actionMap[action]();
+    }
+  }
+
+  /**
+   * Setup quick search functionality
+   */
+  function setupQuickSearch() {
+    const input = document.getElementById('repolens-search-input');
+    const submitBtn = document.getElementById('repolens-search-submit');
+    
+    if (!input) return;
+
+    const submitSearch = () => {
+      const query = input.value.trim();
+      if (query) {
+        sendQueryToApp(query);
+        input.value = '';
+      }
+    };
+
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        submitSearch();
+      }
+    });
+
+    if (submitBtn) {
+      submitBtn.addEventListener('click', submitSearch);
+    }
+
+    // Focus on ⌘K or Ctrl+K
+    input.addEventListener('focus', () => {
+      // Navigate to query panel when focused
+      navigateToPanel('query');
+      updateActiveNavButton('repolens-nav-query');
+    });
+  }
+
+  /**
+   * Send a query to the app
+   */
+  function sendQueryToApp(query) {
+    const iframe = document.getElementById(IFRAME_ID);
+    if (iframe && iframe.contentWindow) {
+      iframe.contentWindow.postMessage({ type: 'REPOLENS_QUERY', query }, '*');
+      updateStatus('Sending query...');
+    }
+  }
+
+  /**
+   * Setup keyboard shortcuts
+   */
+  function setupKeyboardShortcuts() {
+    document.addEventListener('keydown', (e) => {
+      const overlay = document.getElementById(OVERLAY_ID);
+      if (!overlay || !overlay.classList.contains('open')) return;
+      
+      // Only handle shortcuts when not typing in an input
+      const isTyping = ['INPUT', 'TEXTAREA'].includes(document.activeElement?.tagName);
+      
+      // ⌘K or Ctrl+K to open command palette
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault();
+        toggleCommandPalette();
+        return;
+      }
+      
+      // Escape to close command palette or overlay
+      if (e.key === 'Escape') {
+        const palette = document.getElementById('repolens-command-palette');
+        if (palette && palette.classList.contains('open')) {
+          toggleCommandPalette(false);
+        } else {
+          closeOverlay();
+        }
+        return;
+      }
+      
+      // Navigation shortcuts (only when not typing)
+      if (!isTyping) {
+        const shortcuts = {
+          'f': () => { navigateToPanel('files'); updateActiveNavButton('repolens-nav-files'); },
+          's': () => { navigateToPanel('symbols'); updateActiveNavButton('repolens-nav-symbols'); },
+          'a': () => { navigateToPanel('architecture'); updateActiveNavButton('repolens-nav-arch'); },
+          'q': () => { navigateToPanel('query'); updateActiveNavButton('repolens-nav-query'); },
+          'r': refreshRepository,
+        };
+        
+        if (shortcuts[e.key.toLowerCase()]) {
+          e.preventDefault();
+          shortcuts[e.key.toLowerCase()]();
+        }
+      }
+    });
   }
 
   /**

@@ -26,14 +26,15 @@ export function QueryInterface() {
     scrollToBottom();
   }, [queryHistory, scrollToBottom]);
 
-  const handleSubmit = useCallback(async () => {
-    if (!query.trim() || !selectedRepository || isQuerying) return;
+  const handleSubmitInternal = useCallback(async (queryText?: string) => {
+    const queryToSubmit = queryText || query;
+    if (!queryToSubmit.trim() || !selectedRepository || isQuerying) return;
 
     setError(null);
     setQuerying(true);
 
     try {
-      const result = await queryRepository(selectedRepository, query.trim());
+      const result = await queryRepository(selectedRepository, queryToSubmit.trim());
       addQueryResult(result);
       setQuery('');
     } catch (err) {
@@ -42,6 +43,29 @@ export function QueryInterface() {
       setQuerying(false);
     }
   }, [query, selectedRepository, isQuerying, setQuerying, addQueryResult]);
+
+  // Listen for external query events (from overlay)
+  useEffect(() => {
+    const handleExternalQuery = (event: CustomEvent<{ query: string }>) => {
+      if (event.detail?.query && selectedRepository && !isQuerying) {
+        setQuery(event.detail.query);
+        // Auto-submit after a brief delay to allow UI to update
+        setTimeout(() => {
+          handleSubmitInternal(event.detail.query);
+        }, 100);
+      }
+    };
+
+    window.addEventListener('repolens-query', handleExternalQuery as EventListener);
+    
+    return () => {
+      window.removeEventListener('repolens-query', handleExternalQuery as EventListener);
+    };
+  }, [selectedRepository, isQuerying, handleSubmitInternal]);
+
+  const handleSubmit = useCallback(() => {
+    handleSubmitInternal();
+  }, [handleSubmitInternal]);
 
   const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
