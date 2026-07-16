@@ -1,5 +1,5 @@
 import { PGlite } from '@electric-sql/pglite';
-import { SCHEMA_SQL } from './schema';
+import { COMBINED_SCHEMA_SQL } from './schema';
 import { STORAGE_KEYS } from '../constants';
 import type {
   Repository,
@@ -26,7 +26,7 @@ export async function initDatabase(): Promise<PGlite> {
   if (db) return db;
 
   db = new PGlite(STORAGE_KEYS.DATABASE);
-  await db.exec(SCHEMA_SQL);
+  await db.exec(COMBINED_SCHEMA_SQL);
 
   return db;
 }

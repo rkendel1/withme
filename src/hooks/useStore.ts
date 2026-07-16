@@ -45,7 +45,7 @@ interface AppState {
   setLLMConfig: (config: LLMConfig | null) => void;
 
   // UI State
-  activePanel: 'repositories' | 'collections' | 'files' | 'symbols' | 'query' | 'settings';
+  activePanel: 'repositories' | 'collections' | 'files' | 'symbols' | 'architecture' | 'query' | 'settings';
   setActivePanel: (panel: AppState['activePanel']) => void;
   isSidebarOpen: boolean;
   toggleSidebar: () => void;

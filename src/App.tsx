@@ -9,6 +9,8 @@ import {
   X,
   Search,
   FolderOpen,
+  Layers,
+  Download,
 } from 'lucide-react';
 import { useStore } from './hooks/useStore';
 import { initDatabase, getAllRepositories, ensureDefaultCollection } from './db';
@@ -20,6 +22,7 @@ import { SymbolBrowser } from './components/SymbolBrowser';
 import { QueryInterface } from './components/QueryInterface';
 import { Settings } from './components/Settings';
 import { Collections } from './components/Collections';
+import { ArchitecturePanel } from './components/ArchitecturePanel';
 import './App.css';
 
 const NAV_ITEMS = [
@@ -27,6 +30,7 @@ const NAV_ITEMS = [
   { id: 'collections' as const, label: 'Collections', icon: FolderOpen },
   { id: 'files' as const, label: 'Files', icon: FileText },
   { id: 'symbols' as const, label: 'Symbols', icon: Code2 },
+  { id: 'architecture' as const, label: 'Architecture', icon: Layers },
   { id: 'query' as const, label: 'Ask', icon: MessageSquare },
   { id: 'settings' as const, label: 'Settings', icon: SettingsIcon },
 ];
@@ -168,6 +172,7 @@ function App() {
           {activePanel === 'collections' && <Collections />}
           {activePanel === 'files' && <FileExplorer />}
           {activePanel === 'symbols' && <SymbolBrowser />}
+          {activePanel === 'architecture' && <ArchitecturePanel />}
           {activePanel === 'query' && <QueryInterface />}
           {activePanel === 'settings' && <Settings />}
         </div>
@@ -183,14 +188,37 @@ function App() {
                 <p>Query responses appear in the panel</p>
               </div>
             </div>
+          ) : activePanel === 'architecture' ? (
+            <div className="flex items-center justify-center h-full text-gray-500 dark:text-gray-400">
+              <div className="text-center">
+                <Layers className="w-12 h-12 mx-auto mb-2 opacity-50" />
+                <p>Architecture analysis appears in the panel</p>
+              </div>
+            </div>
           ) : (
             <div className="flex items-center justify-center h-full text-gray-500 dark:text-gray-400">
               <div className="text-center max-w-md px-4">
                 <Search className="w-16 h-16 mx-auto mb-4 text-blue-600 opacity-50" />
                 <h2 className="text-xl font-semibold mb-2">Welcome to RepoLens</h2>
-                <p className="text-sm">
+                <p className="text-sm mb-4">
                   Transform Git repositories into queryable databases. Add a repository to get started.
                 </p>
+                <div className="mt-6 pt-6 border-t border-gray-200 dark:border-gray-700">
+                  <p className="text-sm mb-3">
+                    <strong>Quick Start:</strong> Install the browser overlay for one-click ingestion
+                  </p>
+                  <a
+                    href="/userscript/repolens.user.js"
+                    className="inline-flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg 
+                               hover:bg-green-700 transition-colors text-sm font-medium"
+                  >
+                    <Download className="w-4 h-4" />
+                    Install Browser Overlay
+                  </a>
+                  <p className="text-xs mt-2 text-gray-400">
+                    Requires <a href="https://www.tampermonkey.net/" target="_blank" rel="noopener noreferrer" className="underline">Tampermonkey</a> or similar userscript manager
+                  </p>
+                </div>
               </div>
             </div>
           )}

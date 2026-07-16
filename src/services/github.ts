@@ -18,11 +18,12 @@ import {
   extractImports,
   extractDependencies,
 } from './shared';
+import { analyzeArchitecture } from './architecture';
 
 const GITHUB_API = 'https://api.github.com';
 
 export interface IngestionProgress {
-  phase: 'metadata' | 'tree' | 'files' | 'analysis' | 'complete';
+  phase: 'metadata' | 'tree' | 'files' | 'analysis' | 'architecture' | 'complete';
   current: number;
   total: number;
   message: string;
@@ -259,6 +260,24 @@ export async function ingestGitHubRepository(
       }
     }
   }
+
+  // Phase 5: Architecture Analysis
+  onProgress?.({
+    phase: 'architecture',
+    current: 0,
+    total: 1,
+    message: 'Analyzing repository architecture...',
+  });
+
+  // Run architecture analysis - it loads files and dependencies from the database
+  await analyzeArchitecture(repository);
+
+  onProgress?.({
+    phase: 'architecture',
+    current: 1,
+    total: 1,
+    message: 'Architecture analysis complete!',
+  });
 
   onProgress?.({
     phase: 'complete',
