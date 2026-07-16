@@ -235,3 +235,6 @@ export type Platform = 'github' | 'gitlab';
 
 // Re-export architecture types
 export * from './architecture';
+
+// Re-export graph types
+export * from './graph';
