@@ -81,6 +81,11 @@ CREATE TABLE IF NOT EXISTS execution_sessions (
   environment TEXT NOT NULL DEFAULT 'development',
   mode TEXT NOT NULL DEFAULT 'local',
   
+  -- Device context
+  device_type TEXT,
+  provider TEXT,
+  preview_type TEXT,
+  
   -- Container info
   container_id TEXT REFERENCES runtime_containers(id) ON DELETE SET NULL,
   container_image TEXT,

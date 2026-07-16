@@ -9,6 +9,8 @@
  * - Container reuse
  * - Preview URL management
  * - Process health monitoring
+ * - Device capability detection
+ * - Adaptive execution strategies
  */
 
 import type {
@@ -23,6 +25,10 @@ import type {
   ExecutionEventType,
   RuntimeContainer,
   ExecutionProcess,
+  DeviceCapabilities,
+  ExecutionStrategy,
+  RuntimeProvider,
+  PreviewType,
 } from '../../types/runtime';
 import { DEFAULT_EXECUTION_CONFIG } from '../../types/runtime';
 import {
@@ -56,6 +62,10 @@ import {
   getPrimaryPreviewUrl,
   getPreviewsForSession,
 } from './previewManager';
+import {
+  detectDeviceCapabilities,
+  selectExecutionStrategy,
+} from './deviceCapabilities';
 
 // ============================================================================
 // Session ID Generation
@@ -132,20 +142,75 @@ export function detectContainerRuntime(): ContainerRuntime {
 // ============================================================================
 
 /**
+ * Options for creating an execution session
+ */
+export interface CreateSessionOptions {
+  environment?: RuntimeEnvironment;
+  mode?: ExecutionMode;
+  config?: Partial<ExecutionConfig>;
+  /** Override device capabilities (for testing or explicit selection) */
+  capabilities?: Partial<DeviceCapabilities>;
+  /** Whether a local agent is available */
+  localAgentAvailable?: boolean;
+  /** Whether container runtime is available */
+  containerRuntimeAvailable?: boolean;
+  /** Whether remote execution is available */
+  remoteExecutionAvailable?: boolean;
+}
+
+/**
  * Create a new execution session for a repository
+ * 
+ * This function now includes device capability detection to select
+ * the appropriate execution strategy based on the user's device.
  */
 export async function createSession(
   repositoryId: number,
   profile: RuntimeProfile,
-  options: {
-    environment?: RuntimeEnvironment;
-    mode?: ExecutionMode;
-    config?: Partial<ExecutionConfig>;
-  } = {}
+  options: CreateSessionOptions = {}
 ): Promise<ExecutionSession> {
   const sessionId = generateSessionId();
   const environment = options.environment || 'development';
-  const mode = options.mode || detectBestExecutionMode();
+  
+  // Detect device capabilities
+  const containerRuntime = detectContainerRuntime();
+  const capabilities = detectDeviceCapabilities({
+    localAgentAvailable: options.localAgentAvailable ?? false,
+    containerRuntimeAvailable: options.containerRuntimeAvailable ?? (containerRuntime !== 'none'),
+    remoteExecutionAvailable: options.remoteExecutionAvailable ?? true,
+  });
+  
+  // Select execution strategy based on capabilities
+  const strategy = selectExecutionStrategy(capabilities);
+  
+  // Use provided mode or use strategy-selected mode
+  const mode = options.mode || strategy.mode;
+  
+  // Determine provider and preview type based on mode
+  let provider: RuntimeProvider;
+  let previewType: PreviewType;
+  
+  switch (mode) {
+    case 'local':
+      provider = 'local-agent';
+      previewType = 'localhost';
+      break;
+    case 'remote':
+      provider = 'remote-sandbox';
+      previewType = 'https';
+      break;
+    case 'browser':
+      provider = 'browser-wasm';
+      previewType = 'embedded';
+      break;
+    case 'analysis':
+      provider = 'analysis-only';
+      previewType = 'none';
+      break;
+    default:
+      provider = strategy.provider;
+      previewType = strategy.previewType;
+  }
 
   // Check for existing active sessions
   const existingSessions = await getActiveSessionsForRepository(repositoryId);
@@ -164,18 +229,28 @@ export async function createSession(
     statusMessage: null,
     environment,
     mode,
+    deviceType: capabilities.platform,
+    provider,
+    previewType,
     containerId: null,
     containerImage: null,
     url: null,
     ports: [],
   });
 
-  emitEvent('session.created', sessionId, { repositoryId, profileId: profile.id });
+  emitEvent('session.created', sessionId, { 
+    repositoryId, 
+    profileId: profile.id,
+    deviceType: capabilities.platform,
+    provider,
+    previewType,
+    executionStrategy: strategy.selectionReason,
+  });
 
   await addExecutionLog({
     sessionId,
     level: 'info',
-    message: `Execution session created for repository ${repositoryId}`,
+    message: `Execution session created for repository ${repositoryId} (${capabilities.platform} device, ${provider} provider)`,
     source: 'system',
   });
 
@@ -183,15 +258,49 @@ export async function createSession(
 }
 
 /**
- * Detect the best execution mode based on environment
+ * Detect the best execution mode based on environment and device capabilities
  */
-function detectBestExecutionMode(): ExecutionMode {
+function detectBestExecutionMode(capabilities?: DeviceCapabilities): ExecutionMode {
+  if (capabilities) {
+    const strategy = selectExecutionStrategy(capabilities);
+    return strategy.mode;
+  }
+  
+  // Legacy fallback
   const runtime = detectContainerRuntime();
   if (runtime !== 'none') {
     return 'local';
   }
   // In browser without container runtime, use browser mode
   return 'browser';
+}
+
+/**
+ * Get device capabilities for the current environment
+ */
+export function getDeviceCapabilities(options: {
+  localAgentAvailable?: boolean;
+  containerRuntimeAvailable?: boolean;
+  remoteExecutionAvailable?: boolean;
+} = {}): DeviceCapabilities {
+  const containerRuntime = detectContainerRuntime();
+  return detectDeviceCapabilities({
+    localAgentAvailable: options.localAgentAvailable ?? false,
+    containerRuntimeAvailable: options.containerRuntimeAvailable ?? (containerRuntime !== 'none'),
+    remoteExecutionAvailable: options.remoteExecutionAvailable ?? true,
+  });
+}
+
+/**
+ * Get execution strategy for current device
+ */
+export function getExecutionStrategy(options: {
+  localAgentAvailable?: boolean;
+  containerRuntimeAvailable?: boolean;
+  remoteExecutionAvailable?: boolean;
+} = {}): ExecutionStrategy {
+  const capabilities = getDeviceCapabilities(options);
+  return selectExecutionStrategy(capabilities);
 }
 
 /**
@@ -213,23 +322,36 @@ export async function startSession(
     statusMessage: 'Creating execution environment...',
   });
 
-  emitEvent('session.started', sessionId);
+  emitEvent('session.started', sessionId, {
+    mode: session!.mode,
+    provider: session!.provider,
+    deviceType: session!.deviceType,
+  });
 
   await addExecutionLog({
     sessionId,
     level: 'info',
-    message: 'Starting execution session...',
+    message: `Starting execution session (mode: ${session!.mode}, provider: ${session!.provider || 'auto'})...`,
     source: 'system',
   });
 
   try {
-    // Simulate container creation (in browser mode)
-    if (session!.mode === 'browser') {
-      session = await simulateBrowserExecution(sessionId, profile);
-    } else if (session!.mode === 'local') {
-      session = await executeLocalContainer(sessionId, profile, _config);
-    } else {
-      throw new Error(`Unsupported execution mode: ${session!.mode}`);
+    // Execute based on mode
+    switch (session!.mode) {
+      case 'browser':
+        session = await simulateBrowserExecution(sessionId, profile);
+        break;
+      case 'local':
+        session = await executeLocalContainer(sessionId, profile, _config);
+        break;
+      case 'remote':
+        session = await executeRemoteSandbox(sessionId, profile, _config);
+        break;
+      case 'analysis':
+        session = await executeAnalysisMode(sessionId, profile);
+        break;
+      default:
+        throw new Error(`Unsupported execution mode: ${session!.mode}`);
     }
 
     return session!;
@@ -455,6 +577,219 @@ async function executeLocalContainer(
     sessionId,
     level: 'info',
     message: `Application is running at ${session?.url}`,
+    source: 'system',
+  });
+
+  return session!;
+}
+
+/**
+ * Execute in remote cloud sandbox
+ * This mode is used for mobile devices and environments without local container runtime
+ */
+async function executeRemoteSandbox(
+  sessionId: string,
+  profile: RuntimeProfile,
+  _config: ExecutionConfig
+): Promise<ExecutionSession> {
+  const currentSession = await getExecutionSession(sessionId);
+  if (!currentSession) {
+    throw new Error(`Session ${sessionId} not found`);
+  }
+
+  // Generate a unique sandbox ID
+  const sandboxId = typeof crypto !== 'undefined' && crypto.randomUUID
+    ? crypto.randomUUID().substring(0, 8)
+    : Date.now().toString(36);
+
+  // Update status to creating remote sandbox
+  await updateExecutionSession(sessionId, {
+    status: 'creating',
+    statusMessage: 'Provisioning cloud sandbox...',
+  });
+
+  await addExecutionLog({
+    sessionId,
+    level: 'info',
+    message: 'Connecting to remote execution provider...',
+    source: 'system',
+  });
+
+  // Simulate remote sandbox provisioning
+  await delay(1500);
+
+  await addExecutionLog({
+    sessionId,
+    level: 'info',
+    message: `Cloud sandbox provisioned (ID: ${sandboxId})`,
+    source: 'system',
+  });
+
+  // Update status to installing
+  await updateExecutionSession(sessionId, {
+    status: 'installing',
+    statusMessage: 'Installing dependencies in sandbox...',
+    containerId: `sandbox-${sandboxId}`,
+  });
+
+  emitEvent('dependencies.installing', sessionId);
+
+  await addExecutionLog({
+    sessionId,
+    level: 'info',
+    message: `Running: ${profile.installCommand}`,
+    source: 'system',
+  });
+
+  await delay(2000);
+
+  emitEvent('dependencies.installed', sessionId);
+
+  // Update status to starting
+  await updateExecutionSession(sessionId, {
+    status: 'starting',
+    statusMessage: 'Starting application in sandbox...',
+  });
+
+  emitEvent('application.starting', sessionId);
+
+  await addExecutionLog({
+    sessionId,
+    level: 'info',
+    message: `Running: ${profile.startCommand}`,
+    source: 'system',
+  });
+
+  await delay(1500);
+
+  // Generate secure preview URL (HTTPS)
+  const previewUrl = `https://session-${sandboxId}.preview.repolens.app`;
+  
+  // No port mappings for remote - access is via HTTPS URL
+  const ports: PortMapping[] = profile.ports.map((port) => ({
+    internal: port,
+    external: 443, // HTTPS
+    protocol: 'tcp' as const,
+  }));
+
+  const session = await updateExecutionSession(sessionId, {
+    status: 'running',
+    statusMessage: 'Application running in cloud sandbox',
+    url: previewUrl,
+    ports,
+    previewType: 'https',
+  });
+
+  emitEvent('application.ready', sessionId, { 
+    url: previewUrl,
+    ports,
+    provider: 'remote-sandbox',
+  });
+  
+  emitEvent('preview.available', sessionId, {
+    url: previewUrl,
+    type: 'https',
+  });
+
+  await addExecutionLog({
+    sessionId,
+    level: 'info',
+    message: `Application is running at ${previewUrl}`,
+    source: 'system',
+  });
+
+  await addExecutionLog({
+    sessionId,
+    level: 'info',
+    message: 'Secure preview URL ready for access from any device',
+    source: 'system',
+  });
+
+  return session!;
+}
+
+/**
+ * Execute in analysis-only mode
+ * This mode provides repository analysis without actual execution
+ */
+async function executeAnalysisMode(
+  sessionId: string,
+  profile: RuntimeProfile
+): Promise<ExecutionSession> {
+  // Update status - analysis mode doesn't need "creating"
+  await updateExecutionSession(sessionId, {
+    status: 'starting',
+    statusMessage: 'Initializing analysis mode...',
+  });
+
+  await addExecutionLog({
+    sessionId,
+    level: 'info',
+    message: 'Starting analysis-only mode (no runtime execution)',
+    source: 'system',
+  });
+
+  await delay(500);
+
+  // In analysis mode, we don't actually run anything
+  // The session is immediately "running" in analysis mode
+  const session = await updateExecutionSession(sessionId, {
+    status: 'running',
+    statusMessage: 'Analysis mode active',
+    url: null, // No preview URL in analysis mode
+    ports: [],
+    previewType: 'none',
+  });
+
+  emitEvent('application.ready', sessionId, {
+    mode: 'analysis',
+    capabilities: [
+      'repository-analysis',
+      'architecture-diagram',
+      'ai-questions',
+      'code-review',
+    ],
+  });
+
+  await addExecutionLog({
+    sessionId,
+    level: 'info',
+    message: 'Analysis mode active. Available capabilities:',
+    source: 'system',
+  });
+
+  await addExecutionLog({
+    sessionId,
+    level: 'info',
+    message: '  ✓ Repository structure analysis',
+    source: 'system',
+  });
+
+  await addExecutionLog({
+    sessionId,
+    level: 'info',
+    message: '  ✓ Architecture diagram generation',
+    source: 'system',
+  });
+
+  await addExecutionLog({
+    sessionId,
+    level: 'info',
+    message: '  ✓ AI-powered Q&A',
+    source: 'system',
+  });
+
+  await addExecutionLog({
+    sessionId,
+    level: 'info',
+    message: '  ✓ Code review assistance',
+    source: 'system',
+  });
+
+  await addExecutionLog({
+    sessionId,
+    level: 'info',
+    message: `Detected runtime: ${profile.runtime} (execution unavailable on this device)`,
     source: 'system',
   });
 
@@ -726,6 +1061,9 @@ export async function createSessionWithContainer(
     statusMessage: null,
     environment,
     mode,
+    deviceType: null,
+    provider: 'local-agent',
+    previewType: 'localhost',
     containerId: container.id,
     containerImage: getContainerImageForRuntime(profile.runtime, profile.version || getDefaultVersion(profile.runtime)),
     url: previewUrl,

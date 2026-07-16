@@ -26,6 +26,9 @@ import type {
   ContainerEvent,
   CreateContainerEventData,
   ContainerEventType,
+  DevicePlatform,
+  RuntimeProvider,
+  PreviewType,
 } from '../types/runtime';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -137,8 +140,8 @@ export async function createExecutionSession(
   const result = await query(
     `INSERT INTO execution_sessions 
      (id, repository_id, profile_id, status, status_message, environment, mode,
-      container_id, container_image, url, ports)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+      device_type, provider, preview_type, container_id, container_image, url, ports)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
      RETURNING *`,
     [
       session.id,
@@ -148,6 +151,9 @@ export async function createExecutionSession(
       session.statusMessage,
       session.environment,
       session.mode,
+      session.deviceType,
+      session.provider,
+      session.previewType,
       session.containerId,
       session.containerImage,
       session.url,
@@ -175,6 +181,18 @@ export async function updateExecutionSession(
   if (updates.statusMessage !== undefined) {
     setClauses.push(`status_message = $${paramIndex++}`);
     values.push(updates.statusMessage);
+  }
+  if (updates.deviceType !== undefined) {
+    setClauses.push(`device_type = $${paramIndex++}`);
+    values.push(updates.deviceType);
+  }
+  if (updates.provider !== undefined) {
+    setClauses.push(`provider = $${paramIndex++}`);
+    values.push(updates.provider);
+  }
+  if (updates.previewType !== undefined) {
+    setClauses.push(`preview_type = $${paramIndex++}`);
+    values.push(updates.previewType);
   }
   if (updates.containerId !== undefined) {
     setClauses.push(`container_id = $${paramIndex++}`);
@@ -362,6 +380,9 @@ function mapExecutionSession(row: DatabaseRow): ExecutionSession {
     statusMessage: row.status_message as string | null,
     environment: row.environment as RuntimeEnvironment,
     mode: row.mode as ExecutionMode,
+    deviceType: (row.device_type as DevicePlatform | null) || null,
+    provider: (row.provider as RuntimeProvider | null) || null,
+    previewType: (row.preview_type as PreviewType | null) || null,
     containerId: row.container_id as string | null,
     containerImage: row.container_image as string | null,
     url: row.url as string | null,
