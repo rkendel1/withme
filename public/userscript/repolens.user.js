@@ -1,28 +1,28 @@
 // ==UserScript==
 // @name         RepoLens - Repository Intelligence
-// @namespace    https://repolens.app
-// @version      1.0.0
-// @description  Transform Git repositories into queryable databases. Single-click ingestion for GitHub and GitLab.
+// @namespace    https://withme-w3kh.onrender.com
+// @version      2.0.0
+// @description  Transform Git repositories into queryable databases. Full app embedded overlay with file exploration, AI queries, architecture graphs, and more.
 // @author       RepoLens
 // @match        https://github.com/*
 // @match        https://gitlab.com/*
 // @match        https://*.gitlab.com/*
-// @grant        GM_openInTab
+// @grant        GM_addStyle
 // @grant        GM_setValue
 // @grant        GM_getValue
-// @grant        GM_addStyle
 // @icon         data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9IiMzYjgyZjYiIHN0cm9rZS13aWR0aD0iMiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIj48Y2lyY2xlIGN4PSIxMSIgY3k9IjExIiByPSI4Ii8+PGxpbmUgeDE9IjIxIiB5MT0iMjEiIHgyPSIxNi42NSIgeTI9IjE2LjY1Ii8+PC9zdmc+
-// @downloadURL  https://repolens.app/userscript/repolens.user.js
-// @updateURL    https://repolens.app/userscript/repolens.user.js
+// @downloadURL  https://withme-w3kh.onrender.com/userscript/repolens.user.js
+// @updateURL    https://withme-w3kh.onrender.com/userscript/repolens.user.js
 // ==/UserScript==
 
 (function() {
   'use strict';
 
   // Configuration
-  const REPOLENS_APP_URL = 'https://repolens.app';
+  const REPOLENS_APP_URL = 'https://withme-w3kh.onrender.com';
   const BUTTON_ID = 'repolens-ingest-button';
   const OVERLAY_ID = 'repolens-overlay';
+  const IFRAME_ID = 'repolens-iframe';
 
   // Paths to exclude from repository detection
   const GITHUB_EXCLUDED_PATHS = [
@@ -34,11 +34,12 @@
     'explore', 'dashboard', 'users', 'groups', 'admin', 'help', '-'
   ];
 
-  // Styles
+  // Styles for the overlay with embedded app
   const styles = `
+    /* Floating trigger button */
     #${BUTTON_ID} {
       position: fixed;
-      bottom: 24px;
+      top: 80px;
       right: 24px;
       z-index: 9999;
       display: flex;
@@ -52,18 +53,20 @@
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
       font-size: 14px;
       font-weight: 600;
-      cursor: pointer;
+      cursor: grab;
       box-shadow: 0 4px 14px rgba(59, 130, 246, 0.4);
-      transition: all 0.2s ease;
+      transition: box-shadow 0.2s ease, transform 0.1s ease;
+      user-select: none;
     }
 
     #${BUTTON_ID}:hover {
-      transform: translateY(-2px);
       box-shadow: 0 6px 20px rgba(59, 130, 246, 0.5);
     }
 
-    #${BUTTON_ID}:active {
-      transform: translateY(0);
+    #${BUTTON_ID}.dragging {
+      cursor: grabbing;
+      transform: scale(1.05);
+      box-shadow: 0 8px 24px rgba(59, 130, 246, 0.6);
     }
 
     #${BUTTON_ID} svg {
@@ -71,13 +74,181 @@
       height: 18px;
     }
 
-    #${BUTTON_ID}.loading {
-      opacity: 0.8;
-      pointer-events: none;
+    /* Main overlay container */
+    #${OVERLAY_ID} {
+      position: fixed;
+      top: 40px;
+      right: 20px;
+      width: 900px;
+      height: calc(100vh - 80px);
+      max-width: calc(100vw - 40px);
+      max-height: calc(100vh - 80px);
+      min-width: 400px;
+      min-height: 300px;
+      z-index: 10000;
+      background: #1f2937;
+      border-radius: 12px;
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.1);
+      display: none;
+      flex-direction: column;
+      overflow: hidden;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     }
 
-    #${BUTTON_ID}.loading svg {
+    #${OVERLAY_ID}.open {
+      display: flex;
+    }
+
+    #${OVERLAY_ID}.dragging {
+      opacity: 0.95;
+    }
+
+    /* Overlay header with controls */
+    .repolens-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 12px;
+      background: #111827;
+      border-bottom: 1px solid #374151;
+      cursor: grab;
+      user-select: none;
+      flex-shrink: 0;
+    }
+
+    .repolens-header:active {
+      cursor: grabbing;
+    }
+
+    .repolens-header.dragging {
+      cursor: grabbing;
+      background: #1f2937;
+    }
+
+    .repolens-header-left {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .repolens-logo {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: white;
+      font-weight: 600;
+      font-size: 14px;
+    }
+
+    .repolens-logo svg {
+      width: 20px;
+      height: 20px;
+      color: #3b82f6;
+    }
+
+    .repolens-repo-badge {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 10px;
+      background: #374151;
+      border-radius: 6px;
+      font-size: 12px;
+      color: #d1d5db;
+    }
+
+    .repolens-header-right {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .repolens-header-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 28px;
+      height: 28px;
+      padding: 0;
+      background: transparent;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      color: #9ca3af;
+      transition: all 0.15s ease;
+    }
+
+    .repolens-header-btn:hover {
+      background: #374151;
+      color: white;
+    }
+
+    .repolens-header-btn svg {
+      width: 16px;
+      height: 16px;
+    }
+
+    .repolens-header-btn.close:hover {
+      background: #dc2626;
+      color: white;
+    }
+
+    /* Resize handle */
+    .repolens-resize {
+      position: absolute;
+      bottom: 0;
+      right: 0;
+      width: 20px;
+      height: 20px;
+      cursor: nwse-resize;
+      z-index: 10;
+    }
+
+    .repolens-resize::before {
+      content: '';
+      position: absolute;
+      bottom: 4px;
+      right: 4px;
+      width: 10px;
+      height: 10px;
+      border-right: 2px solid #4b5563;
+      border-bottom: 2px solid #4b5563;
+    }
+
+    /* Iframe container */
+    .repolens-iframe-container {
+      flex: 1;
+      overflow: hidden;
+      background: #0f172a;
+    }
+
+    #${IFRAME_ID} {
+      width: 100%;
+      height: 100%;
+      border: none;
+      background: #0f172a;
+    }
+
+    /* Loading state */
+    .repolens-loading {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+      color: #9ca3af;
+      gap: 16px;
+    }
+
+    .repolens-loading svg {
+      width: 48px;
+      height: 48px;
+      color: #3b82f6;
       animation: spin 1s linear infinite;
+    }
+
+    .repolens-loading-text {
+      font-size: 14px;
     }
 
     @keyframes spin {
@@ -85,324 +256,57 @@
       to { transform: rotate(360deg); }
     }
 
-    #${OVERLAY_ID} {
-      position: fixed;
-      top: 0;
-      right: 0;
-      bottom: 0;
-      width: 420px;
-      z-index: 10000;
-      background: white;
-      box-shadow: -4px 0 20px rgba(0, 0, 0, 0.15);
-      transform: translateX(100%);
-      transition: transform 0.3s ease;
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-    }
-
-    #${OVERLAY_ID}.open {
-      transform: translateX(0);
-    }
-
-    @media (prefers-color-scheme: dark) {
-      #${OVERLAY_ID} {
-        background: #1f2937;
-        color: white;
-      }
-    }
-
-    .repolens-overlay-header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 16px 20px;
-      border-bottom: 1px solid #e5e7eb;
-      background: #f9fafb;
-    }
-
-    @media (prefers-color-scheme: dark) {
-      .repolens-overlay-header {
-        background: #111827;
-        border-color: #374151;
-      }
-    }
-
-    .repolens-overlay-title {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      font-size: 16px;
-      font-weight: 600;
-      color: #111827;
-    }
-
-    @media (prefers-color-scheme: dark) {
-      .repolens-overlay-title {
-        color: white;
-      }
-    }
-
-    .repolens-overlay-close {
-      padding: 4px;
-      background: none;
-      border: none;
-      cursor: pointer;
-      color: #6b7280;
-      border-radius: 4px;
-    }
-
-    .repolens-overlay-close:hover {
-      background: #e5e7eb;
-      color: #111827;
-    }
-
-    @media (prefers-color-scheme: dark) {
-      .repolens-overlay-close:hover {
-        background: #374151;
-        color: white;
-      }
-    }
-
-    .repolens-overlay-content {
-      padding: 20px;
-    }
-
-    .repolens-repo-card {
-      padding: 16px;
-      background: #f9fafb;
-      border-radius: 12px;
-      margin-bottom: 16px;
-    }
-
-    @media (prefers-color-scheme: dark) {
-      .repolens-repo-card {
-        background: #111827;
-      }
-    }
-
-    .repolens-repo-name {
-      font-weight: 600;
-      font-size: 15px;
-      color: #111827;
-      margin-bottom: 4px;
-    }
-
-    @media (prefers-color-scheme: dark) {
-      .repolens-repo-name {
-        color: white;
-      }
-    }
-
-    .repolens-repo-url {
-      font-size: 12px;
-      color: #6b7280;
-      word-break: break-all;
-    }
-
-    .repolens-actions {
-      display: flex;
-      flex-direction: column;
-      gap: 12px;
-    }
-
-    .repolens-btn {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 8px;
-      padding: 12px 16px;
-      border-radius: 8px;
-      font-size: 14px;
-      font-weight: 500;
-      cursor: pointer;
-      transition: all 0.15s ease;
-      border: none;
-    }
-
-    .repolens-btn-primary {
-      background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
-      color: white;
-    }
-
-    .repolens-btn-primary:hover {
-      box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
-    }
-
-    .repolens-btn-secondary {
-      background: #e5e7eb;
-      color: #374151;
-    }
-
-    @media (prefers-color-scheme: dark) {
-      .repolens-btn-secondary {
-        background: #374151;
-        color: #e5e7eb;
-      }
-    }
-
-    .repolens-btn-secondary:hover {
-      background: #d1d5db;
-    }
-
-    @media (prefers-color-scheme: dark) {
-      .repolens-btn-secondary:hover {
-        background: #4b5563;
-      }
-    }
-
-    .repolens-divider {
-      display: flex;
-      align-items: center;
-      margin: 20px 0;
-      color: #9ca3af;
-      font-size: 12px;
-    }
-
-    .repolens-divider::before,
-    .repolens-divider::after {
-      content: '';
-      flex: 1;
-      height: 1px;
-      background: #e5e7eb;
-    }
-
-    @media (prefers-color-scheme: dark) {
-      .repolens-divider::before,
-      .repolens-divider::after {
-        background: #374151;
-      }
-    }
-
-    .repolens-divider span {
-      padding: 0 12px;
-    }
-
-    .repolens-collections {
-      margin-top: 16px;
-    }
-
-    .repolens-collections-title {
-      font-size: 13px;
-      font-weight: 600;
-      color: #6b7280;
-      margin-bottom: 12px;
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
-    }
-
-    .repolens-collection-item {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      padding: 10px 12px;
-      background: #f9fafb;
-      border-radius: 8px;
-      margin-bottom: 8px;
-      cursor: pointer;
-      transition: background 0.15s ease;
-    }
-
-    @media (prefers-color-scheme: dark) {
-      .repolens-collection-item {
-        background: #111827;
-      }
-    }
-
-    .repolens-collection-item:hover {
-      background: #e5e7eb;
-    }
-
-    @media (prefers-color-scheme: dark) {
-      .repolens-collection-item:hover {
-        background: #1f2937;
-      }
-    }
-
-    .repolens-collection-icon {
-      width: 32px;
-      height: 32px;
-      border-radius: 8px;
-      background: linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      color: white;
-    }
-
-    .repolens-collection-info {
-      flex: 1;
-    }
-
-    .repolens-collection-name {
-      font-weight: 500;
-      font-size: 14px;
-      color: #111827;
-    }
-
-    @media (prefers-color-scheme: dark) {
-      .repolens-collection-name {
-        color: white;
-      }
-    }
-
-    .repolens-collection-count {
-      font-size: 12px;
-      color: #6b7280;
-    }
-
-    .repolens-backdrop {
-      position: fixed;
-      top: 0;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      background: rgba(0, 0, 0, 0.3);
-      z-index: 9999;
-      opacity: 0;
-      pointer-events: none;
-      transition: opacity 0.3s ease;
-    }
-
-    .repolens-backdrop.open {
-      opacity: 1;
-      pointer-events: auto;
-    }
-
+    /* Toast notifications */
     .repolens-toast {
       position: fixed;
-      bottom: 100px;
-      right: 24px;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%) translateY(20px);
       padding: 12px 20px;
       background: #111827;
       color: white;
-      border-radius: 8px;
-      font-size: 14px;
+      border-radius: 10px;
+      font-size: 13px;
       z-index: 10001;
-      transform: translateY(20px);
       opacity: 0;
       transition: all 0.2s ease;
+      white-space: nowrap;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
     }
 
     .repolens-toast.show {
-      transform: translateY(0);
+      transform: translateX(-50%) translateY(0);
       opacity: 1;
     }
 
-    @media (prefers-color-scheme: dark) {
-      .repolens-toast {
-        background: #f9fafb;
-        color: #111827;
-      }
+    /* Minimized state */
+    #${OVERLAY_ID}.minimized {
+      width: 280px;
+      height: 48px;
+      min-width: 280px;
+      min-height: 48px;
+    }
+
+    #${OVERLAY_ID}.minimized .repolens-iframe-container,
+    #${OVERLAY_ID}.minimized .repolens-resize {
+      display: none;
+    }
+
+    #${OVERLAY_ID}.minimized .repolens-header {
+      border-bottom: none;
+      border-radius: 12px;
     }
   `;
 
-  // Icons
+  // SVG Icons
   const icons = {
-    search: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>`,
-    loader: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="2" x2="12" y2="6"/><line x1="12" y1="18" x2="12" y2="22"/><line x1="4.93" y1="4.93" x2="7.76" y2="7.76"/><line x1="16.24" y1="16.24" x2="19.07" y2="19.07"/><line x1="2" y1="12" x2="6" y2="12"/><line x1="18" y1="12" x2="22" y2="12"/><line x1="4.93" y1="19.07" x2="7.76" y2="16.24"/><line x1="16.24" y1="7.76" x2="19.07" y2="4.93"/></svg>`,
-    x: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>`,
-    folder: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.93a2 2 0 0 1-1.66-.9l-.82-1.2A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13c0 1.1.9 2 2 2Z"/></svg>`,
-    externalLink: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>`,
-    plus: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>`,
+    search: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>',
+    x: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>',
+    minus: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/></svg>',
+    maximize: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>',
+    loader: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="2" x2="12" y2="6"/><line x1="12" y1="18" x2="12" y2="22"/><line x1="4.93" y1="4.93" x2="7.76" y2="7.76"/><line x1="16.24" y1="16.24" x2="19.07" y2="19.07"/><line x1="2" y1="12" x2="6" y2="12"/><line x1="18" y1="12" x2="22" y2="12"/><line x1="4.93" y1="19.07" x2="7.76" y2="16.24"/><line x1="16.24" y1="7.76" x2="19.07" y2="4.93"/></svg>',
+    git: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 3v6m0 6v6"/></svg>',
+    externalLink: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>',
   };
 
   /**
@@ -426,7 +330,6 @@
     const pathname = window.location.pathname;
 
     if (platform === 'github') {
-      // GitHub URL: /owner/repo or /owner/repo/...
       const match = pathname.match(/^\/([^/]+)\/([^/]+)/);
       if (match && !GITHUB_EXCLUDED_PATHS.includes(match[1])) {
         return {
@@ -438,12 +341,9 @@
         };
       }
     } else if (platform === 'gitlab') {
-      // GitLab URL: /owner/repo or /group/subgroup/repo
-      // GitLab paths can be nested, so we need to detect the project page
       const match = pathname.match(/^\/(.+?)(?:\/-\/|$)/);
       if (match) {
         const projectPath = match[1].replace(/\/$/, '');
-        // Skip non-project pages
         if (!GITLAB_EXCLUDED_PATHS.some(p => projectPath.startsWith(p))) {
           const parts = projectPath.split('/');
           if (parts.length >= 2) {
@@ -486,9 +386,9 @@
   }
 
   /**
-   * Create the ingest button
+   * Create the floating trigger button
    */
-  function createIngestButton() {
+  function createTriggerButton() {
     if (document.getElementById(BUTTON_ID)) {
       return;
     }
@@ -496,14 +396,69 @@
     const button = document.createElement('button');
     button.id = BUTTON_ID;
     button.innerHTML = `${icons.search} <span>RepoLens</span>`;
-    button.addEventListener('click', handleButtonClick);
+    
+    // Click handler - toggle overlay
+    let hasDragged = false;
+    button.addEventListener('click', (e) => {
+      if (!hasDragged) {
+        toggleOverlay();
+      }
+      hasDragged = false;
+    });
+
+    // Make button draggable
+    let isDragging = false;
+    let startX, startY, initialX, initialY;
+
+    button.addEventListener('mousedown', (e) => {
+      if (e.button !== 0) return;
+      isDragging = true;
+      hasDragged = false;
+      startX = e.clientX;
+      startY = e.clientY;
+      const rect = button.getBoundingClientRect();
+      initialX = rect.left;
+      initialY = rect.top;
+      button.classList.add('dragging');
+      e.preventDefault();
+    });
+
+    const onMouseMove = (e) => {
+      if (!isDragging) return;
+      const dx = e.clientX - startX;
+      const dy = e.clientY - startY;
+      
+      if (Math.abs(dx) > 5 || Math.abs(dy) > 5) {
+        hasDragged = true;
+      }
+
+      const newX = initialX + dx;
+      const newY = initialY + dy;
+      const maxX = window.innerWidth - button.offsetWidth;
+      const maxY = window.innerHeight - button.offsetHeight;
+
+      button.style.right = 'auto';
+      button.style.left = `${Math.max(0, Math.min(newX, maxX))}px`;
+      button.style.top = `${Math.max(0, Math.min(newY, maxY))}px`;
+    };
+
+    const onMouseUp = () => {
+      if (isDragging) {
+        isDragging = false;
+        button.classList.remove('dragging');
+      }
+    };
+
+    document.addEventListener('mousemove', onMouseMove);
+    document.addEventListener('mouseup', onMouseUp);
+
     document.body.appendChild(button);
   }
 
   /**
-   * Remove the ingest button
+   * Remove the trigger button
    */
-  function removeIngestButton() {
+  function removeTriggerButton() {
     const button = document.getElementById(BUTTON_ID);
     if (button) {
       button.remove();
@@ -511,7 +466,7 @@
   }
 
   /**
-   * Create the overlay panel
+   * Create the overlay with embedded app
    */
   function createOverlay() {
     if (document.getElementById(OVERLAY_ID)) {
@@ -519,77 +474,190 @@
     }
 
     const repoInfo = parseRepoInfo();
-    if (!repoInfo) return;
-
-    // Create backdrop
-    const backdrop = document.createElement('div');
-    backdrop.id = 'repolens-backdrop';
-    backdrop.className = 'repolens-backdrop';
-    backdrop.addEventListener('click', closeOverlay);
-    document.body.appendChild(backdrop);
-
-    // Create overlay
     const overlay = document.createElement('div');
     overlay.id = OVERLAY_ID;
+
     overlay.innerHTML = `
-      <div class="repolens-overlay-header">
-        <div class="repolens-overlay-title">
-          ${icons.search}
-          <span>RepoLens</span>
-        </div>
-        <button class="repolens-overlay-close" id="repolens-close">
-          ${icons.x}
-        </button>
-      </div>
-      <div class="repolens-overlay-content">
-        <div class="repolens-repo-card">
-          <div class="repolens-repo-name">${repoInfo.fullName}</div>
-          <div class="repolens-repo-url">${repoInfo.url}</div>
-        </div>
-
-        <div class="repolens-actions">
-          <button class="repolens-btn repolens-btn-primary" id="repolens-ingest">
-            ${icons.plus}
-            <span>Ingest Repository</span>
-          </button>
-          <button class="repolens-btn repolens-btn-secondary" id="repolens-open-app">
-            ${icons.externalLink}
-            <span>Open RepoLens App</span>
-          </button>
-        </div>
-
-        <div class="repolens-divider">
-          <span>or add to collection</span>
-        </div>
-
-        <div class="repolens-collections">
-          <div class="repolens-collections-title">Your Collections</div>
-          <div id="repolens-collections-list">
-            <div class="repolens-collection-item" data-collection="default">
-              <div class="repolens-collection-icon">
-                ${icons.folder}
-              </div>
-              <div class="repolens-collection-info">
-                <div class="repolens-collection-name">My Repositories</div>
-                <div class="repolens-collection-count">Default collection</div>
-              </div>
-            </div>
+      <div class="repolens-header" id="repolens-drag-handle">
+        <div class="repolens-header-left">
+          <div class="repolens-logo">
+            ${icons.search}
+            <span>RepoLens</span>
           </div>
+          ${repoInfo ? `
+            <div class="repolens-repo-badge">
+              ${icons.git}
+              <span>${repoInfo.fullName}</span>
+            </div>
+          ` : ''}
+        </div>
+        <div class="repolens-header-right">
+          <button class="repolens-header-btn" id="repolens-external" title="Open in new tab">
+            ${icons.externalLink}
+          </button>
+          <button class="repolens-header-btn" id="repolens-minimize" title="Minimize">
+            ${icons.minus}
+          </button>
+          <button class="repolens-header-btn close" id="repolens-close" title="Close">
+            ${icons.x}
+          </button>
         </div>
       </div>
+      <div class="repolens-iframe-container" id="repolens-iframe-container">
+        <div class="repolens-loading" id="repolens-loading">
+          ${icons.loader}
+          <span class="repolens-loading-text">Loading RepoLens...</span>
+        </div>
+      </div>
+      <div class="repolens-resize" id="repolens-resize"></div>
     `;
 
     document.body.appendChild(overlay);
 
     // Bind event listeners
     document.getElementById('repolens-close').addEventListener('click', closeOverlay);
-    document.getElementById('repolens-ingest').addEventListener('click', handleIngest);
-    document.getElementById('repolens-open-app').addEventListener('click', handleOpenApp);
+    document.getElementById('repolens-minimize').addEventListener('click', toggleMinimize);
+    document.getElementById('repolens-external').addEventListener('click', openInNewTab);
 
-    // Collection items
-    document.querySelectorAll('.repolens-collection-item').forEach(item => {
-      item.addEventListener('click', () => handleAddToCollection(item.dataset.collection));
+    // Setup dragging
+    setupOverlayDrag(overlay);
+
+    // Setup resizing
+    setupOverlayResize(overlay);
+  }
+
+  /**
+   * Load the app iframe
+   */
+  function loadAppIframe() {
+    const container = document.getElementById('repolens-iframe-container');
+    const loading = document.getElementById('repolens-loading');
+    
+    // Check if iframe already exists
+    if (document.getElementById(IFRAME_ID)) {
+      return;
+    }
+
+    const repoInfo = parseRepoInfo();
+    
+    // Build the app URL with optional ingest parameter
+    let appUrl = REPOLENS_APP_URL;
+    if (repoInfo) {
+      appUrl = `${REPOLENS_APP_URL}?ingest=${encodeURIComponent(repoInfo.url)}`;
+    }
+
+    const iframe = document.createElement('iframe');
+    iframe.id = IFRAME_ID;
+    iframe.src = appUrl;
+    iframe.allow = 'clipboard-read; clipboard-write';
+    
+    iframe.addEventListener('load', () => {
+      if (loading) {
+        loading.style.display = 'none';
+      }
     });
+
+    container.appendChild(iframe);
+  }
+
+  /**
+   * Setup overlay dragging
+   */
+  function setupOverlayDrag(overlay) {
+    const header = document.getElementById('repolens-drag-handle');
+    if (!header) return;
+
+    let isDragging = false;
+    let startX, startY, initialX, initialY;
+
+    header.addEventListener('mousedown', (e) => {
+      if (e.target.closest('.repolens-header-btn')) return;
+      if (e.button !== 0) return;
+
+      isDragging = true;
+      startX = e.clientX;
+      startY = e.clientY;
+      const rect = overlay.getBoundingClientRect();
+      initialX = rect.left;
+      initialY = rect.top;
+      header.classList.add('dragging');
+      overlay.classList.add('dragging');
+      e.preventDefault();
+    });
+
+    document.addEventListener('mousemove', (e) => {
+      if (!isDragging) return;
+      const dx = e.clientX - startX;
+      const dy = e.clientY - startY;
+
+      const newX = initialX + dx;
+      const newY = initialY + dy;
+      const maxX = window.innerWidth - overlay.offsetWidth;
+      const maxY = window.innerHeight - overlay.offsetHeight;
+
+      overlay.style.right = 'auto';
+      overlay.style.left = `${Math.max(0, Math.min(newX, maxX))}px`;
+      overlay.style.top = `${Math.max(0, Math.min(newY, maxY))}px`;
+    });
+
+    document.addEventListener('mouseup', () => {
+      if (isDragging) {
+        isDragging = false;
+        header.classList.remove('dragging');
+        overlay.classList.remove('dragging');
+      }
+    });
+  }
+
+  /**
+   * Setup overlay resizing
+   */
+  function setupOverlayResize(overlay) {
+    const resizeHandle = document.getElementById('repolens-resize');
+    if (!resizeHandle) return;
+
+    let isResizing = false;
+    let startX, startY, initialWidth, initialHeight;
+
+    resizeHandle.addEventListener('mousedown', (e) => {
+      if (e.button !== 0) return;
+      isResizing = true;
+      startX = e.clientX;
+      startY = e.clientY;
+      initialWidth = overlay.offsetWidth;
+      initialHeight = overlay.offsetHeight;
+      e.preventDefault();
+    });
+
+    document.addEventListener('mousemove', (e) => {
+      if (!isResizing) return;
+      const dx = e.clientX - startX;
+      const dy = e.clientY - startY;
+
+      const newWidth = Math.max(400, initialWidth + dx);
+      const newHeight = Math.max(300, initialHeight + dy);
+
+      overlay.style.width = `${newWidth}px`;
+      overlay.style.height = `${newHeight}px`;
+    });
+
+    document.addEventListener('mouseup', () => {
+      if (isResizing) {
+        isResizing = false;
+      }
+    });
+  }
+
+  /**
+   * Toggle overlay visibility
+   */
+  function toggleOverlay() {
+    const overlay = document.getElementById(OVERLAY_ID);
+    if (overlay && overlay.classList.contains('open')) {
+      closeOverlay();
+    } else {
+      openOverlay();
+    }
   }
 
   /**
@@ -597,10 +665,11 @@
    */
   function openOverlay() {
     createOverlay();
-    requestAnimationFrame(() => {
-      document.getElementById(OVERLAY_ID)?.classList.add('open');
-      document.getElementById('repolens-backdrop')?.classList.add('open');
-    });
+    const overlay = document.getElementById(OVERLAY_ID);
+    if (overlay) {
+      overlay.classList.add('open');
+      loadAppIframe();
+    }
   }
 
   /**
@@ -608,86 +677,31 @@
    */
   function closeOverlay() {
     const overlay = document.getElementById(OVERLAY_ID);
-    const backdrop = document.getElementById('repolens-backdrop');
-    overlay?.classList.remove('open');
-    backdrop?.classList.remove('open');
-    setTimeout(() => {
-      overlay?.remove();
-      backdrop?.remove();
-    }, 300);
+    if (overlay) {
+      overlay.classList.remove('open');
+    }
   }
 
   /**
-   * Handle button click
+   * Toggle minimize state
    */
-  function handleButtonClick() {
-    openOverlay();
+  function toggleMinimize() {
+    const overlay = document.getElementById(OVERLAY_ID);
+    if (overlay) {
+      overlay.classList.toggle('minimized');
+    }
   }
 
   /**
-   * Handle ingest action
+   * Open app in new tab
    */
-  function handleIngest() {
+  function openInNewTab() {
     const repoInfo = parseRepoInfo();
-    if (!repoInfo) return;
-
-    const button = document.getElementById('repolens-ingest');
-    if (button) {
-      button.innerHTML = `${icons.loader} <span>Ingesting...</span>`;
-      button.disabled = true;
+    let appUrl = REPOLENS_APP_URL;
+    if (repoInfo) {
+      appUrl = `${REPOLENS_APP_URL}?ingest=${encodeURIComponent(repoInfo.url)}`;
     }
-
-    // Build the RepoLens app URL with the repo to ingest
-    // Only the 'ingest' parameter is currently used by the app
-    const appUrl = new URL(REPOLENS_APP_URL);
-    appUrl.searchParams.set('ingest', repoInfo.url);
-
-    // Open in new tab
-    if (typeof GM_openInTab !== 'undefined') {
-      GM_openInTab(appUrl.toString(), { active: true });
-    } else {
-      window.open(appUrl.toString(), '_blank');
-    }
-
-    showToast(`Opening RepoLens to ingest ${repoInfo.fullName}...`);
-    closeOverlay();
-  }
-
-  /**
-   * Handle open app action
-   */
-  function handleOpenApp() {
-    const appUrl = REPOLENS_APP_URL;
-    if (typeof GM_openInTab !== 'undefined') {
-      GM_openInTab(appUrl, { active: true });
-    } else {
-      window.open(appUrl, '_blank');
-    }
-    closeOverlay();
-  }
-
-  /**
-   * Handle add to collection
-   * Note: Collection support will be added in a future version.
-   * Currently, this just triggers a standard ingestion.
-   */
-  function handleAddToCollection(collectionId) {
-    const repoInfo = parseRepoInfo();
-    if (!repoInfo) return;
-
-    // Build the RepoLens app URL
-    // Note: Collection assignment after ingestion is planned for future implementation
-    const appUrl = new URL(REPOLENS_APP_URL);
-    appUrl.searchParams.set('ingest', repoInfo.url);
-
-    if (typeof GM_openInTab !== 'undefined') {
-      GM_openInTab(appUrl.toString(), { active: true });
-    } else {
-      window.open(appUrl.toString(), '_blank');
-    }
-
-    showToast(`Adding ${repoInfo.fullName} to collection...`);
-    closeOverlay();
+    window.open(appUrl, '_blank');
   }
 
   /**
@@ -705,7 +719,7 @@
 
     // Check if we're on a repo page and create button
     if (isRepoPage()) {
-      createIngestButton();
+      createTriggerButton();
     }
 
     // Watch for URL changes (SPA navigation)
@@ -714,9 +728,10 @@
       if (location.href !== lastUrl) {
         lastUrl = location.href;
         if (isRepoPage()) {
-          createIngestButton();
+          createTriggerButton();
         } else {
-          removeIngestButton();
+          removeTriggerButton();
+          closeOverlay();
         }
       }
     }).observe(document.body, { childList: true, subtree: true });
