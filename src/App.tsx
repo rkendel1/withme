@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import {
   FolderGit2,
   FileText,
@@ -49,6 +49,7 @@ function App() {
     isSidebarOpen,
     toggleSidebar,
     selectedRepository,
+    isIngesting,
   } = useStore();
 
   const isOverlay = useOverlayMode();
@@ -68,6 +69,21 @@ function App() {
     }
   }, [isOverlay, isSidebarOpen, toggleSidebar]);
 
+  // Send status updates to parent frame (overlay)
+  const sendStatusToParent = useCallback((status: string, loading = false, data?: Record<string, unknown>) => {
+    if (!isOverlay) return;
+    try {
+      window.parent.postMessage({
+        type: 'REPOLENS_STATUS',
+        status,
+        loading,
+        ...data,
+      }, '*');
+    } catch {
+      // Ignore cross-origin errors
+    }
+  }, [isOverlay]);
+
   // Listen for messages from the overlay parent frame
   useEffect(() => {
     if (!isOverlay) return;
@@ -80,21 +96,53 @@ function App() {
         const validPanels = ['repositories', 'collections', 'files', 'symbols', 'architecture', 'runtime', 'query', 'settings'];
         if (validPanels.includes(panel)) {
           setActivePanel(panel as typeof activePanel);
+          sendStatusToParent(`Navigated to ${panel}`);
         }
       } else if (type === 'REPOLENS_QUERY' && query) {
         // Navigate to query panel and trigger a query
         setActivePanel('query');
+        sendStatusToParent('Processing query...', true);
         // Dispatch a custom event that QueryInterface can listen to
         window.dispatchEvent(new CustomEvent('repolens-query', { detail: { query } }));
+      } else if (type === 'REPOLENS_GET_STATUS') {
+        // Parent is requesting current status
+        sendStatusToParent(
+          selectedRepository ? `Repository: ${selectedRepository.fullName}` : 'Ready',
+          isIngesting,
+          { 
+            hasRepository: !!selectedRepository,
+            repositoryName: selectedRepository?.fullName,
+            activePanel,
+          }
+        );
       }
     };
 
     window.addEventListener('message', handleMessage);
     return () => window.removeEventListener('message', handleMessage);
-  }, [isOverlay, setActivePanel]);
+  }, [isOverlay, setActivePanel, sendStatusToParent, selectedRepository, isIngesting, activePanel]);
+
+  // Notify parent frame when app is ready
+  useEffect(() => {
+    if (!isLoading && !error) {
+      sendStatusToParent(
+        selectedRepository ? `Repository: ${selectedRepository.fullName}` : 'Ready',
+        false,
+        { ready: true, hasRepository: !!selectedRepository }
+      );
+    }
+  }, [isLoading, error, selectedRepository, sendStatusToParent]);
+
+  // Notify parent frame when ingestion status changes
+  useEffect(() => {
+    if (isIngesting) {
+      sendStatusToParent('Ingesting repository...', true);
+    }
+  }, [isIngesting, sendStatusToParent]);
 
   useEffect(() => {
     async function init() {
+      sendStatusToParent('Initializing database...', true);
       try {
         await initDatabase();
         setDbInitialized(true);
@@ -109,15 +157,18 @@ function App() {
         if (llmConfig) {
           setLLMConfig(llmConfig);
         }
+        sendStatusToParent('Ready', false, { ready: true });
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to initialize database');
+        const errorMsg = err instanceof Error ? err.message : 'Failed to initialize database';
+        setError(errorMsg);
+        sendStatusToParent(`Error: ${errorMsg}`, false, { error: true });
       } finally {
         setIsLoading(false);
       }
     }
 
     init();
-  }, [setDbInitialized, setRepositories, setLLMConfig]);
+  }, [setDbInitialized, setRepositories, setLLMConfig, sendStatusToParent]);
 
   if (isLoading) {
     return (

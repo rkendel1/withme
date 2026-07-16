@@ -1,8 +1,24 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { Send, Loader2, MessageSquare, Bot, User, FileText, Code2 } from 'lucide-react';
 import { useStore } from '../hooks/useStore';
+import { useOverlayMode } from '../hooks/useOverlayMode';
 import { queryRepository } from '../services/llm';
 import type { QueryResult } from '../types';
+
+// Helper to send status to parent overlay
+function sendStatusToParent(status: string, loading = false) {
+  try {
+    if (window.self !== window.top) {
+      window.parent.postMessage({
+        type: 'REPOLENS_STATUS',
+        status,
+        loading,
+      }, '*');
+    }
+  } catch {
+    // Ignore cross-origin errors
+  }
+}
 
 export function QueryInterface() {
   const {
@@ -14,6 +30,7 @@ export function QueryInterface() {
     llmConfig,
   } = useStore();
 
+  const isOverlay = useOverlayMode();
   const [query, setQuery] = useState('');
   const [error, setError] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -32,17 +49,30 @@ export function QueryInterface() {
 
     setError(null);
     setQuerying(true);
+    
+    if (isOverlay) {
+      sendStatusToParent('Processing query...', true);
+    }
 
     try {
       const result = await queryRepository(selectedRepository, queryToSubmit.trim());
       addQueryResult(result);
       setQuery('');
+      
+      if (isOverlay) {
+        sendStatusToParent('Query complete', false);
+      }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to process query');
+      const errorMsg = err instanceof Error ? err.message : 'Failed to process query';
+      setError(errorMsg);
+      
+      if (isOverlay) {
+        sendStatusToParent(`Error: ${errorMsg}`, false);
+      }
     } finally {
       setQuerying(false);
     }
-  }, [query, selectedRepository, isQuerying, setQuerying, addQueryResult]);
+  }, [query, selectedRepository, isQuerying, setQuerying, addQueryResult, isOverlay]);
 
   // Listen for external query events (from overlay)
   useEffect(() => {
