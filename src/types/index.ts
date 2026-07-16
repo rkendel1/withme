@@ -232,3 +232,6 @@ export interface CollectionRepository {
 
 /** Platform type for ingestion */
 export type Platform = 'github' | 'gitlab';
+
+// Re-export architecture types
+export * from './architecture';

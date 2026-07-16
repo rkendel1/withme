@@ -151,10 +151,16 @@ CREATE INDEX IF NOT EXISTS idx_collection_repositories_collection ON collection_
 CREATE INDEX IF NOT EXISTS idx_collection_repositories_repository ON collection_repositories(repository_id);
 `;
 
+import { ARCHITECTURE_SCHEMA_SQL, ARCHITECTURE_MIGRATION } from './architectureSchema';
+
 export const MIGRATIONS = [
   {
     version: 1,
     name: 'initial_schema',
     sql: SCHEMA_SQL,
   },
+  ARCHITECTURE_MIGRATION,
 ];
+
+// Combined schema for initial database setup
+export const COMBINED_SCHEMA_SQL = SCHEMA_SQL + '\n' + ARCHITECTURE_SCHEMA_SQL;
