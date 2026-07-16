@@ -103,7 +103,8 @@ export async function acquireRepository(
           progressAdapter
         );
 
-        const repo = await getRepository(repoId);
+        // Note: repo variable kept for potential future stats retrieval
+        await getRepository(repoId);
         
         return {
           success: true,
@@ -111,7 +112,7 @@ export async function acquireRepository(
           error: null,
           strategy: 'github-api',
           stats: {
-            totalFiles: repo ? 0 : 0, // Stats not available from existing service
+            totalFiles: 0, // Stats not available from existing GitHub service
             filesWithContent: 0,
             totalDirectories: 0,
             totalSizeBytes: 0,

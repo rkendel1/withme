@@ -98,6 +98,7 @@ async function parseZipFile(file: File): Promise<Map<string, ArrayBuffer>> {
     }
     
     // Parse local file header
+    const flags = view.getUint16(offset + 6, true);
     const compressionMethod = view.getUint16(offset + 8, true);
     const compressedSize = view.getUint32(offset + 18, true);
     // uncompressedSize available at offset + 22 but not used
@@ -139,13 +140,13 @@ async function parseZipFile(file: File): Promise<Map<string, ArrayBuffer>> {
     offset = dataEnd;
     
     // Handle data descriptor if present (bit 3 of flags)
-    const flags = view.getUint16(offset + 6, true);
     if (flags & 0x08) {
       // Data descriptor follows compressed data
-      offset += 12; // Skip descriptor (optional signature + crc + sizes)
+      // Check for optional signature
       if (offset < buffer.byteLength - 4 && view.getUint32(offset, true) === 0x08074b50) {
-        offset += 4; // Skip optional signature
+        offset += 4; // Skip signature
       }
+      offset += 12; // Skip crc + sizes
     }
   }
   
@@ -227,12 +228,18 @@ export async function parseZipImport(
       try {
         content = new TextDecoder().decode(data);
         // Check if content looks like binary (has many non-printable chars)
-        const nonPrintable = content.split('').filter(c => {
-          const code = c.charCodeAt(0);
-          return code < 32 && code !== 9 && code !== 10 && code !== 13;
-        }).length;
-        if (nonPrintable > content.length * 0.1) {
-          content = null; // Too many non-printable chars, likely binary
+        // Use a loop with early exit for efficiency
+        const threshold = content.length * 0.1;
+        let nonPrintableCount = 0;
+        for (let i = 0; i < content.length; i++) {
+          const code = content.charCodeAt(i);
+          if (code < 32 && code !== 9 && code !== 10 && code !== 13) {
+            nonPrintableCount++;
+            if (nonPrintableCount > threshold) {
+              content = null; // Too many non-printable chars, likely binary
+              break;
+            }
+          }
         }
       } catch {
         content = null;

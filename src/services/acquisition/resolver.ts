@@ -16,6 +16,13 @@ import { parseGitHubUrl } from '../github';
 import { parseGitLabUrl } from '../gitlab';
 
 /**
+ * Extended File interface with webkitRelativePath for folder uploads
+ */
+interface FileWithPath extends File {
+  readonly webkitRelativePath: string;
+}
+
+/**
  * Resolve the acquisition source from user input
  */
 export function resolveSource(input: ResolverInput): ResolvedSource | null {
@@ -111,10 +118,8 @@ function getFolderName(files: File[]): string {
   if (files.length === 0) return 'Unknown';
   
   // Try to find common root from webkitRelativePath
-  const firstFile = files[0];
-  // webkitRelativePath is non-standard but widely supported
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const relativePath: string | undefined = (firstFile as any).webkitRelativePath;
+  const firstFile = files[0] as FileWithPath;
+  const relativePath: string | undefined = firstFile.webkitRelativePath;
   
   if (relativePath) {
     const parts = relativePath.split('/');
@@ -132,11 +137,29 @@ function getFolderName(files: File[]): string {
  */
 export function isUrlInput(input: string): boolean {
   const trimmed = input.trim();
-  return (
-    trimmed.startsWith('http://') ||
-    trimmed.startsWith('https://') ||
-    trimmed.includes('github.com') ||
-    trimmed.includes('gitlab.com') ||
-    /^[a-zA-Z0-9_-]+\/[a-zA-Z0-9_-]+$/.test(trimmed) // owner/repo format
-  );
+  
+  // Check for explicit protocols
+  if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
+    return true;
+  }
+  
+  // Check for owner/repo format (e.g., facebook/react)
+  if (/^[a-zA-Z0-9_-]+\/[a-zA-Z0-9_.-]+$/.test(trimmed)) {
+    return true;
+  }
+  
+  // Check for valid GitHub/GitLab URLs using proper URL parsing
+  try {
+    // Handle URLs without protocol
+    const urlToTest = trimmed.startsWith('http') ? trimmed : `https://${trimmed}`;
+    const url = new URL(urlToTest);
+    const hostname = url.hostname.toLowerCase();
+    // Check if hostname is exactly github.com/gitlab.com or a subdomain
+    return hostname === 'github.com' || 
+           hostname === 'gitlab.com' ||
+           hostname.endsWith('.github.com') ||
+           hostname.endsWith('.gitlab.com');
+  } catch {
+    return false;
+  }
 }

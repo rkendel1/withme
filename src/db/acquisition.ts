@@ -142,13 +142,17 @@ export async function upsertContentHash(
 
 /**
  * Bulk upsert content hashes
+ * Uses Promise.all for concurrent processing in batches
  */
 export async function upsertContentHashes(
   repositoryId: number,
   hashes: ContentHash[]
 ): Promise<void> {
-  for (const hash of hashes) {
-    await upsertContentHash(repositoryId, hash);
+  // Process in batches of 50 for balanced performance
+  const batchSize = 50;
+  for (let i = 0; i < hashes.length; i += batchSize) {
+    const batch = hashes.slice(i, i + batchSize);
+    await Promise.all(batch.map(hash => upsertContentHash(repositoryId, hash)));
   }
 }
 

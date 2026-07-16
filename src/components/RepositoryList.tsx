@@ -7,6 +7,15 @@ import { acquireRepository } from '../services/acquisition';
 import { getAllRepositories, deleteRepository, getRepository, getFilesByRepository, getSymbolsByRepository } from '../db';
 import type { Platform, AcquisitionProgress } from '../types';
 
+// Extend input element attributes to include non-standard directory attributes
+declare module 'react' {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  interface InputHTMLAttributes<T> {
+    webkitdirectory?: string;
+    directory?: string;
+  }
+}
+
 /**
  * Detect platform from URL and parse repository info
  */
@@ -295,7 +304,6 @@ export function RepositoryList() {
         <input
           ref={folderInputRef}
           type="file"
-          /* @ts-expect-error - webkitdirectory is non-standard but widely supported */
           webkitdirectory=""
           directory=""
           multiple

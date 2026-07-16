@@ -45,6 +45,13 @@ import { detectRuntimeProfile } from '../runtime/runtimeDetector';
 import { createContentHash } from './contentHash';
 
 /**
+ * Extended File interface with webkitRelativePath for folder uploads
+ */
+interface FileWithPath extends File {
+  readonly webkitRelativePath: string;
+}
+
+/**
  * Match a path against glob-like patterns
  */
 function matchesPattern(path: string, patterns: string[]): boolean {
@@ -84,9 +91,9 @@ export async function parseFolderImport(
   const languageCounts: Record<string, number> = {};
 
   for (const file of files) {
-    // webkitRelativePath is non-standard but widely supported
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const relativePath: string = (file as any).webkitRelativePath || file.name;
+    // Use webkitRelativePath if available (folder upload)
+    const fileWithPath = file as FileWithPath;
+    const relativePath: string = fileWithPath.webkitRelativePath || file.name;
     
     // Remove root folder from path to get repository-relative path
     const pathParts = relativePath.split('/');
