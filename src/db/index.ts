@@ -10,6 +10,8 @@ import type {
   Dependency,
   Chunk,
   QueryResult,
+  Collection,
+  CollectionRepository,
 } from '../types';
 
 let db: PGlite | null = null;
@@ -456,4 +458,169 @@ function mapChunk(row: DatabaseRow): Chunk {
     endLine: row.end_line as number | null,
     embedding: row.embedding as number[] | null,
   };
+}
+
+function mapCollection(row: DatabaseRow): Collection {
+  return {
+    id: row.id as number,
+    name: row.name as string,
+    description: row.description as string | null,
+    color: row.color as string,
+    createdAt: new Date(row.created_at as string),
+    updatedAt: new Date(row.updated_at as string),
+  };
+}
+
+function mapCollectionRepository(row: DatabaseRow): CollectionRepository {
+  return {
+    collectionId: row.collection_id as number,
+    repositoryId: row.repository_id as number,
+    addedAt: new Date(row.added_at as string),
+  };
+}
+
+// Collection operations
+export async function createCollection(
+  collection: Omit<Collection, 'id' | 'createdAt' | 'updatedAt'>
+): Promise<Collection> {
+  const result = await query(
+    `INSERT INTO collections (name, description, color)
+     VALUES ($1, $2, $3)
+     RETURNING *`,
+    [collection.name, collection.description, collection.color]
+  );
+  return mapCollection(result[0]);
+}
+
+export async function updateCollection(
+  id: number,
+  updates: Partial<Omit<Collection, 'id' | 'createdAt' | 'updatedAt'>>
+): Promise<Collection | null> {
+  const setClauses: string[] = [];
+  const values: unknown[] = [];
+  let paramIndex = 1;
+
+  if (updates.name !== undefined) {
+    setClauses.push(`name = $${paramIndex++}`);
+    values.push(updates.name);
+  }
+  if (updates.description !== undefined) {
+    setClauses.push(`description = $${paramIndex++}`);
+    values.push(updates.description);
+  }
+  if (updates.color !== undefined) {
+    setClauses.push(`color = $${paramIndex++}`);
+    values.push(updates.color);
+  }
+
+  if (setClauses.length === 0) {
+    return getCollection(id);
+  }
+
+  setClauses.push('updated_at = NOW()');
+  values.push(id);
+
+  const result = await query(
+    `UPDATE collections SET ${setClauses.join(', ')} WHERE id = $${paramIndex} RETURNING *`,
+    values
+  );
+  return result.length > 0 ? mapCollection(result[0]) : null;
+}
+
+export async function getCollection(id: number): Promise<Collection | null> {
+  const result = await query('SELECT * FROM collections WHERE id = $1', [id]);
+  return result.length > 0 ? mapCollection(result[0]) : null;
+}
+
+export async function getCollectionByName(name: string): Promise<Collection | null> {
+  const result = await query('SELECT * FROM collections WHERE name = $1', [name]);
+  return result.length > 0 ? mapCollection(result[0]) : null;
+}
+
+export async function getAllCollections(): Promise<Collection[]> {
+  const result = await query('SELECT * FROM collections ORDER BY name');
+  return result.map(mapCollection);
+}
+
+export async function deleteCollection(id: number): Promise<void> {
+  await execute('DELETE FROM collections WHERE id = $1', [id]);
+}
+
+export async function addRepositoryToCollection(
+  collectionId: number,
+  repositoryId: number
+): Promise<CollectionRepository> {
+  const result = await query(
+    `INSERT INTO collection_repositories (collection_id, repository_id)
+     VALUES ($1, $2)
+     ON CONFLICT (collection_id, repository_id) DO NOTHING
+     RETURNING *`,
+    [collectionId, repositoryId]
+  );
+  if (result.length === 0) {
+    // Already exists, fetch it
+    const existing = await query(
+      'SELECT * FROM collection_repositories WHERE collection_id = $1 AND repository_id = $2',
+      [collectionId, repositoryId]
+    );
+    return mapCollectionRepository(existing[0]);
+  }
+  return mapCollectionRepository(result[0]);
+}
+
+export async function removeRepositoryFromCollection(
+  collectionId: number,
+  repositoryId: number
+): Promise<void> {
+  await execute(
+    'DELETE FROM collection_repositories WHERE collection_id = $1 AND repository_id = $2',
+    [collectionId, repositoryId]
+  );
+}
+
+export async function getRepositoriesByCollection(
+  collectionId: number
+): Promise<Repository[]> {
+  const result = await query(
+    `SELECT r.* FROM repositories r
+     JOIN collection_repositories cr ON r.id = cr.repository_id
+     WHERE cr.collection_id = $1
+     ORDER BY cr.added_at DESC`,
+    [collectionId]
+  );
+  return result.map(mapRepository);
+}
+
+export async function getCollectionsByRepository(
+  repositoryId: number
+): Promise<Collection[]> {
+  const result = await query(
+    `SELECT c.* FROM collections c
+     JOIN collection_repositories cr ON c.id = cr.collection_id
+     WHERE cr.repository_id = $1
+     ORDER BY c.name`,
+    [repositoryId]
+  );
+  return result.map(mapCollection);
+}
+
+export async function getCollectionRepositoryCount(collectionId: number): Promise<number> {
+  const result = await query(
+    'SELECT COUNT(*) as count FROM collection_repositories WHERE collection_id = $1',
+    [collectionId]
+  );
+  return Number(result[0].count) || 0;
+}
+
+// Ensure default collection exists
+export async function ensureDefaultCollection(): Promise<Collection> {
+  const existing = await getCollectionByName('My Repositories');
+  if (existing) {
+    return existing;
+  }
+  return createCollection({
+    name: 'My Repositories',
+    description: 'Default collection for your repositories',
+    color: '#8b5cf6',
+  });
 }

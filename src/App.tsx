@@ -8,9 +8,10 @@ import {
   Menu,
   X,
   Search,
+  FolderOpen,
 } from 'lucide-react';
 import { useStore } from './hooks/useStore';
-import { initDatabase, getAllRepositories } from './db';
+import { initDatabase, getAllRepositories, ensureDefaultCollection } from './db';
 import { getLLMConfig } from './services/llm';
 import { RepositoryList } from './components/RepositoryList';
 import { FileExplorer } from './components/FileExplorer';
@@ -18,10 +19,12 @@ import { FileViewer } from './components/FileViewer';
 import { SymbolBrowser } from './components/SymbolBrowser';
 import { QueryInterface } from './components/QueryInterface';
 import { Settings } from './components/Settings';
+import { Collections } from './components/Collections';
 import './App.css';
 
 const NAV_ITEMS = [
   { id: 'repositories' as const, label: 'Repositories', icon: FolderGit2 },
+  { id: 'collections' as const, label: 'Collections', icon: FolderOpen },
   { id: 'files' as const, label: 'Files', icon: FileText },
   { id: 'symbols' as const, label: 'Symbols', icon: Code2 },
   { id: 'query' as const, label: 'Ask', icon: MessageSquare },
@@ -48,6 +51,9 @@ function App() {
       try {
         await initDatabase();
         setDbInitialized(true);
+
+        // Ensure default collection exists
+        await ensureDefaultCollection();
 
         const repos = await getAllRepositories();
         setRepositories(repos);
@@ -159,6 +165,7 @@ function App() {
         {/* Panel */}
         <div className="w-80 border-r border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 overflow-hidden">
           {activePanel === 'repositories' && <RepositoryList />}
+          {activePanel === 'collections' && <Collections />}
           {activePanel === 'files' && <FileExplorer />}
           {activePanel === 'symbols' && <SymbolBrowser />}
           {activePanel === 'query' && <QueryInterface />}
