@@ -530,7 +530,7 @@
     }, { passive: false });
 
     document.addEventListener('touchmove', (e) => {
-      if (!isDragging || !e.touches.length) return;
+      if (!e.touches.length || !isDragging) return;
       const touch = e.touches[0];
       moveDrag(touch.clientX, touch.clientY);
       e.preventDefault();
@@ -728,7 +728,7 @@
     }, { passive: false });
 
     document.addEventListener('touchmove', (e) => {
-      if (!isDragging || !e.touches.length) return;
+      if (!e.touches.length || !isDragging) return;
       const touch = e.touches[0];
       moveDrag(touch.clientX, touch.clientY);
       e.preventDefault();
@@ -803,7 +803,7 @@
     }, { passive: false });
 
     document.addEventListener('touchmove', (e) => {
-      if (!isResizing || !e.touches.length) return;
+      if (!e.touches.length || !isResizing) return;
       const touch = e.touches[0];
       moveResize(touch.clientX, touch.clientY);
       e.preventDefault();
