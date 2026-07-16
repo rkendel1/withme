@@ -518,8 +518,11 @@
 
     document.addEventListener('mouseup', endDrag);
 
-    // Touch events for mobile
+    // Touch events for mobile - track if touch started on button
+    let touchStartedOnButton = false;
+
     button.addEventListener('touchstart', (e) => {
+      touchStartedOnButton = true;
       const touch = e.touches[0];
       startDrag(touch.clientX, touch.clientY);
       e.preventDefault();
@@ -533,15 +536,20 @@
     }, { passive: false });
 
     document.addEventListener('touchend', () => {
-      endDrag();
-      // Trigger click if no drag occurred on touch
-      if (!hasDragged) {
+      // Only toggle overlay if touch started on button and no drag occurred
+      if (touchStartedOnButton && !hasDragged) {
         toggleOverlay();
       }
+      endDrag();
+      touchStartedOnButton = false;
       hasDragged = false;
     });
 
-    document.addEventListener('touchcancel', endDrag);
+    document.addEventListener('touchcancel', () => {
+      endDrag();
+      touchStartedOnButton = false;
+      hasDragged = false;
+    });
 
     document.body.appendChild(button);
   }
