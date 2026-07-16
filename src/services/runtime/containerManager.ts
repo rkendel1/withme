@@ -318,6 +318,12 @@ export async function recycleContainer(
   // Simulate cleanup process
   await delay(500);
 
+  // Safely get recycle count from metadata
+  const currentRecycleCount = 
+    typeof container.metadata.recycleCount === 'number' 
+      ? container.metadata.recycleCount 
+      : 0;
+
   // Return to ready state
   const updated = await updateRuntimeContainer(containerId, {
     status: 'ready',
@@ -325,7 +331,7 @@ export async function recycleContainer(
     metadata: {
       ...container.metadata,
       lastRecycledAt: new Date().toISOString(),
-      recycleCount: ((container.metadata.recycleCount as number) || 0) + 1,
+      recycleCount: currentRecycleCount + 1,
     },
   });
 

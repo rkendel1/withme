@@ -194,6 +194,16 @@ function generateLogId(): number {
   return ++logIdCounter;
 }
 
+/**
+ * Format container ID for display (truncate to first 12 characters)
+ */
+function formatContainerId(containerId: string, maxLength = 12): string {
+  if (containerId.length <= maxLength) {
+    return containerId;
+  }
+  return `${containerId.substring(0, maxLength)}...`;
+}
+
 export function RuntimePanel() {
   const {
     selectedRepository,
@@ -821,7 +831,7 @@ export function RuntimePanel() {
               <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
                   <Server className="w-4 h-4" />
-                  <span>Container: {executionSession.containerId.substring(0, 12)}...</span>
+                  <span>Container: {formatContainerId(executionSession.containerId)}</span>
                   {containerStatus && (
                     <span className={`px-2 py-0.5 rounded-full text-xs ${
                       containerStatus === 'running' || containerStatus === 'ready'

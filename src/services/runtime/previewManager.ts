@@ -93,6 +93,7 @@ export function allocatePorts(
 
 /**
  * Find an available external port
+ * Throws error if all ports in range are exhausted
  */
 function findAvailablePort(config: PreviewConfig): number {
   let port = config.portRangeStart;
@@ -104,8 +105,11 @@ function findAvailablePort(config: PreviewConfig): number {
     port++;
   }
   
-  // If all ports are used, recycle from start
-  return config.portRangeStart + (usedPorts.size % (config.portRangeEnd - config.portRangeStart));
+  // All ports exhausted - throw error
+  throw new Error(
+    `All ports in range ${config.portRangeStart}-${config.portRangeEnd} are exhausted. ` +
+    `Release some ports before allocating new ones.`
+  );
 }
 
 /**

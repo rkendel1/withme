@@ -45,6 +45,7 @@ import {
   onContainerEvent,
   healthCheckContainer,
   getContainerImageForRuntime,
+  getDefaultVersion,
 } from './containerManager';
 import {
   allocatePorts,
@@ -483,23 +484,6 @@ function getContainerImage(profile: RuntimeProfile): string {
 }
 
 /**
- * Get default version for a runtime
- */
-function getDefaultVersion(runtime: string): string {
-  const defaults: Record<string, string> = {
-    node: '22',
-    python: '3.12',
-    rust: 'latest',
-    go: '1.22',
-    java: '21',
-    dotnet: '8.0',
-    ruby: '3.3',
-    php: '8.3',
-  };
-  return defaults[runtime] || 'latest';
-}
-
-/**
  * Format version string for Docker image tag
  * Ensures consistent version formatting (e.g., '312' becomes '3.12' for Python)
  */
@@ -611,7 +595,7 @@ export async function createContainer(
     reuseExisting?: boolean;
   } = {}
 ): Promise<{ container: RuntimeContainer; reused: boolean }> {
-  const version = profile.version || '22';
+  const version = profile.version || getDefaultVersion(profile.runtime);
   
   const result = await createOrReuseContainer({
     runtime: profile.runtime,
@@ -721,7 +705,7 @@ export async function createSessionWithContainer(
   // Create or reuse a container
   const { container, reused } = await createOrReuseContainer({
     runtime: profile.runtime,
-    version: profile.version || '22',
+    version: profile.version || getDefaultVersion(profile.runtime),
     metadata: {
       profileId: profile.id,
       repositoryId,
@@ -743,7 +727,7 @@ export async function createSessionWithContainer(
     environment,
     mode,
     containerId: container.id,
-    containerImage: getContainerImageForRuntime(profile.runtime, profile.version || '22'),
+    containerImage: getContainerImageForRuntime(profile.runtime, profile.version || getDefaultVersion(profile.runtime)),
     url: previewUrl,
     ports,
   });
