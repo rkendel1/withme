@@ -226,14 +226,14 @@ export interface RuntimeImage {
   description: string;
 }
 
-/** Default runtime images */
+/** Default runtime images using Docker-style naming convention */
 export const DEFAULT_RUNTIME_IMAGES: RuntimeImage[] = [
   {
     id: 'node22',
     name: 'Node.js 22',
     runtime: 'node',
     version: '22',
-    tag: 'repolens/node22',
+    tag: 'repolens/node:22',
     packageManagers: ['npm', 'yarn', 'pnpm'],
     description: 'Node.js 22 LTS with npm, yarn, and pnpm',
   },
@@ -242,7 +242,7 @@ export const DEFAULT_RUNTIME_IMAGES: RuntimeImage[] = [
     name: 'Python 3.12',
     runtime: 'python',
     version: '3.12',
-    tag: 'repolens/python312',
+    tag: 'repolens/python:3.12',
     packageManagers: ['pip', 'poetry', 'pipenv'],
     description: 'Python 3.12 with pip, poetry, and pipenv',
   },
@@ -251,7 +251,7 @@ export const DEFAULT_RUNTIME_IMAGES: RuntimeImage[] = [
     name: 'Rust (Latest)',
     runtime: 'rust',
     version: 'latest',
-    tag: 'repolens/rust',
+    tag: 'repolens/rust:latest',
     packageManagers: ['cargo'],
     description: 'Rust with Cargo package manager',
   },
@@ -260,7 +260,7 @@ export const DEFAULT_RUNTIME_IMAGES: RuntimeImage[] = [
     name: 'Go (Latest)',
     runtime: 'go',
     version: 'latest',
-    tag: 'repolens/go',
+    tag: 'repolens/go:latest',
     packageManagers: ['go_modules'],
     description: 'Go with modules support',
   },
