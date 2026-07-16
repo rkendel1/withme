@@ -241,3 +241,6 @@ export * from './graph';
 
 // Re-export runtime types
 export * from './runtime';
+
+// Re-export acquisition types
+export * from './acquisition';

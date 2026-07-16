@@ -1,10 +1,11 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
-import { FolderGit2, Plus, Trash2, ExternalLink, Loader2 } from 'lucide-react';
+import { FolderGit2, Plus, Trash2, ExternalLink, Loader2, Upload, FolderOpen, Archive } from 'lucide-react';
 import { useStore } from '../hooks/useStore';
 import { ingestGitHubRepository, IngestionProgress, parseGitHubUrl } from '../services/github';
 import { ingestGitLabRepository, parseGitLabUrl } from '../services/gitlab';
+import { acquireRepository } from '../services/acquisition';
 import { getAllRepositories, deleteRepository, getRepository, getFilesByRepository, getSymbolsByRepository } from '../db';
-import type { Platform } from '../types';
+import type { Platform, AcquisitionProgress } from '../types';
 
 /**
  * Detect platform from URL and parse repository info
@@ -44,7 +45,26 @@ export function RepositoryList() {
 
   const [repoUrl, setRepoUrl] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [showImportOptions, setShowImportOptions] = useState(false);
   const hasProcessedUrlParams = useRef(false);
+  const folderInputRef = useRef<HTMLInputElement>(null);
+  const zipInputRef = useRef<HTMLInputElement>(null);
+
+  const handleAcquisitionComplete = useCallback(async (repoId: number) => {
+    const repo = await getRepository(repoId);
+    if (repo) {
+      addRepository(repo);
+      setSelectedRepository(repo);
+      setRepoUrl('');
+
+      // Load files and symbols
+      const files = await getFilesByRepository(repoId);
+      const symbols = await getSymbolsByRepository(repoId);
+      setFiles(files);
+      setSymbols(symbols);
+      setActivePanel('files');
+    }
+  }, [addRepository, setSelectedRepository, setFiles, setSymbols, setActivePanel]);
 
   const handleIngest = useCallback(async (urlToIngest?: string) => {
     const targetUrl = urlToIngest || repoUrl.trim();
@@ -70,27 +90,92 @@ export function RepositoryList() {
         repoId = await ingestGitHubRepository(targetUrl, undefined, progressCallback);
       }
 
-      const repo = await getRepository(repoId);
-
-      if (repo) {
-        addRepository(repo);
-        setSelectedRepository(repo);
-        setRepoUrl('');
-
-        // Load files and symbols
-        const files = await getFilesByRepository(repoId);
-        const symbols = await getSymbolsByRepository(repoId);
-        setFiles(files);
-        setSymbols(symbols);
-        setActivePanel('files');
-      }
+      await handleAcquisitionComplete(repoId);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to ingest repository');
     } finally {
       setIngesting(false);
       setIngestionProgress(null);
     }
-  }, [repoUrl, setIngesting, setIngestionProgress, addRepository, setSelectedRepository, setFiles, setSymbols, setActivePanel]);
+  }, [repoUrl, setIngesting, setIngestionProgress, handleAcquisitionComplete]);
+
+  const handleFolderImport = useCallback(async (files: FileList | null) => {
+    if (!files || files.length === 0) return;
+
+    setError(null);
+    setIngesting(true);
+    setIngestionProgress(null);
+    setShowImportOptions(false);
+
+    try {
+      const progressCallback = (progress: AcquisitionProgress) => {
+        setIngestionProgress({
+          phase: progress.phase === 'complete' ? 'complete' :
+                 progress.phase === 'analyzing' ? 'analysis' :
+                 progress.phase === 'storing' ? 'files' :
+                 'metadata',
+          current: progress.current,
+          total: progress.total,
+          message: progress.message,
+        });
+      };
+
+      const result = await acquireRepository(
+        { input: '', files: Array.from(files) },
+        progressCallback
+      );
+
+      if (result.success && result.repositoryId) {
+        await handleAcquisitionComplete(result.repositoryId);
+      } else {
+        setError(result.error || 'Failed to import folder');
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to import folder');
+    } finally {
+      setIngesting(false);
+      setIngestionProgress(null);
+    }
+  }, [setIngesting, setIngestionProgress, handleAcquisitionComplete]);
+
+  const handleZipImport = useCallback(async (files: FileList | null) => {
+    if (!files || files.length === 0) return;
+
+    setError(null);
+    setIngesting(true);
+    setIngestionProgress(null);
+    setShowImportOptions(false);
+
+    try {
+      const progressCallback = (progress: AcquisitionProgress) => {
+        setIngestionProgress({
+          phase: progress.phase === 'complete' ? 'complete' :
+                 progress.phase === 'analyzing' ? 'analysis' :
+                 progress.phase === 'storing' ? 'files' :
+                 'metadata',
+          current: progress.current,
+          total: progress.total,
+          message: progress.message,
+        });
+      };
+
+      const result = await acquireRepository(
+        { input: '', files: Array.from(files) },
+        progressCallback
+      );
+
+      if (result.success && result.repositoryId) {
+        await handleAcquisitionComplete(result.repositoryId);
+      } else {
+        setError(result.error || 'Failed to import ZIP archive');
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to import ZIP archive');
+    } finally {
+      setIngesting(false);
+      setIngestionProgress(null);
+    }
+  }, [setIngesting, setIngestionProgress, handleAcquisitionComplete]);
 
   // Handle URL parameters for userscript integration (one-time on mount)
   useEffect(() => {
@@ -171,7 +256,58 @@ export function RepositoryList() {
               <Plus className="w-4 h-4" />
             )}
           </button>
+          <div className="relative">
+            <button
+              onClick={() => setShowImportOptions(!showImportOptions)}
+              disabled={isIngesting}
+              className="px-3 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 
+                         rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 
+                         disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
+              title="Import from folder or ZIP"
+            >
+              <Upload className="w-4 h-4" />
+            </button>
+            {showImportOptions && (
+              <div className="absolute right-0 mt-1 w-48 bg-white dark:bg-gray-800 rounded-lg shadow-lg 
+                              border border-gray-200 dark:border-gray-700 z-10">
+                <button
+                  onClick={() => folderInputRef.current?.click()}
+                  className="w-full px-4 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-gray-700 
+                             flex items-center gap-2 rounded-t-lg"
+                >
+                  <FolderOpen className="w-4 h-4" />
+                  Import Folder
+                </button>
+                <button
+                  onClick={() => zipInputRef.current?.click()}
+                  className="w-full px-4 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-gray-700 
+                             flex items-center gap-2 rounded-b-lg"
+                >
+                  <Archive className="w-4 h-4" />
+                  Import ZIP
+                </button>
+              </div>
+            )}
+          </div>
         </div>
+
+        {/* Hidden file inputs */}
+        <input
+          ref={folderInputRef}
+          type="file"
+          webkitdirectory=""
+          directory=""
+          multiple
+          className="hidden"
+          onChange={(e) => handleFolderImport(e.target.files)}
+        />
+        <input
+          ref={zipInputRef}
+          type="file"
+          accept=".zip"
+          className="hidden"
+          onChange={(e) => handleZipImport(e.target.files)}
+        />
 
         {error && (
           <p className="mt-2 text-sm text-red-600 dark:text-red-400">{error}</p>
@@ -202,7 +338,9 @@ export function RepositoryList() {
           <div className="p-4 text-center text-gray-500 dark:text-gray-400">
             <FolderGit2 className="w-12 h-12 mx-auto mb-2 opacity-50" />
             <p>No repositories yet</p>
-            <p className="text-sm mt-1">Add a GitHub or GitLab repository to get started</p>
+            <p className="text-sm mt-1">
+              Add a repository via URL, or import a local folder or ZIP archive
+            </p>
           </div>
         ) : (
           <ul className="divide-y divide-gray-200 dark:divide-gray-700">
